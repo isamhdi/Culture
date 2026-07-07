@@ -8,14 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import com.culture.tracker.ui.components.PlantCard
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -48,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PropagationType
+import com.culture.tracker.ui.theme.themedColor
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -58,6 +61,9 @@ import org.koin.androidx.compose.koinViewModel
 fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf<GrowthPhase?>(null) }
+
+    val filteredPlants = state.plants.filter { selectedFilter == null || it.currentPhase == selectedFilter }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Plantes") }) },
@@ -67,30 +73,62 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
             }
         },
     ) { padding ->
-        if (state.plants.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Aucune plante pour le moment.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(state.plants, key = { it.id }) { plant ->
-                    val environmentName = state.environments.firstOrNull { it.id == plant.environmentId }?.name
-                    PlantCard(
-                        plant = plant,
-                        thumbnailPath = state.thumbnails[plant.id],
-                        environmentName = environmentName,
-                        onClick = { onPlantClick(plant.id) },
+                item {
+                    FilterChip(
+                        selected = selectedFilter == null,
+                        onClick = { selectedFilter = null },
+                        label = { Text("Toutes") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                     )
+                }
+                items(GrowthPhase.entries.toList()) { phase ->
+                    val color = phase.themedColor()
+                    FilterChip(
+                        selected = selectedFilter == phase,
+                        onClick = { selectedFilter = if (selectedFilter == phase) null else phase },
+                        label = { Text(phase.label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = color,
+                            selectedLabelColor = androidx.compose.ui.graphics.Color.Black,
+                        ),
+                    )
+                }
+            }
+
+            if (filteredPlants.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                ) {
+                    Text("Aucune plante pour le moment.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(filteredPlants, key = { it.id }) { plant ->
+                        val genetics = state.genetics.firstOrNull { it.id == plant.geneticsId }
+                        PlantCard(
+                            plant = plant,
+                            thumbnailPath = state.thumbnails[plant.id],
+                            genetics = genetics,
+                            openPhase = state.openPhaseByPlant[plant.id],
+                            heightCm = state.latestHeightByPlant[plant.id],
+                            onClick = { onPlantClick(plant.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
@@ -134,7 +172,7 @@ private fun CreatePlantSheet(
             modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Nouvelle plante", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Nouvelle plante", onClose = onDismiss)
 
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom de la plante") }, modifier = Modifier.fillMaxWidth())
 

@@ -152,7 +152,7 @@ private fun CreateEnvironmentSheet(
             modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Nouvel environnement", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Nouvel environnement", onClose = onDismiss)
 
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(

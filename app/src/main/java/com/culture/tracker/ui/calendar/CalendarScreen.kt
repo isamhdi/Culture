@@ -211,7 +211,7 @@ private fun AddActionSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Ajouter une action", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Ajouter une action", onClose = onDismiss)
 
             ExposedDropdownMenuBox(expanded = plantMenuExpanded, onExpandedChange = { plantMenuExpanded = it }) {
                 OutlinedTextField(
@@ -288,7 +288,7 @@ private fun ChangePhaseSheet(state: CalendarUiState, defaultDate: LocalDate, onD
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Changer de phase", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Changer de phase", onClose = onDismiss)
             Text(
                 "La date peut être définie dans le passé pour corriger l'historique.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -357,7 +357,7 @@ private fun RecordReadingSheet(state: CalendarUiState, onDismiss: () -> Unit, vi
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Relevé température / humidité", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Relevé température / humidité", onClose = onDismiss)
 
             ExposedDropdownMenuBox(expanded = envMenuExpanded, onExpandedChange = { envMenuExpanded = it }) {
                 OutlinedTextField(

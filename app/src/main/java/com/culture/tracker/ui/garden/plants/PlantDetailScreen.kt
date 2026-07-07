@@ -23,13 +23,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,11 +45,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,11 +65,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.domain.model.GrowthPhase
+import com.culture.tracker.ui.components.GrowthChart
 import com.culture.tracker.ui.components.PhaseChip
+import com.culture.tracker.ui.components.PhaseTimeline
+import com.culture.tracker.ui.components.SheetHeader
+import com.culture.tracker.ui.theme.HandoffColors
 import com.culture.tracker.ui.theme.icon
 import com.culture.tracker.ui.theme.themedColor
 import java.io.File
@@ -80,6 +96,8 @@ fun PlantDetailScreen(
     var pendingPhotoFile by remember { mutableStateOf<File?>(null) }
     var editingPhase by remember { mutableStateOf<PhaseHistory?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
+    var showAddHeightDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingPhotoFile?.let { viewModel.savePhoto(it) }
@@ -97,8 +115,29 @@ fun PlantDetailScreen(
                     IconButton(onClick = { showEditSheet = true }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Modifier la plante")
                     }
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Supprimer la plante", tint = HandoffColors.Danger)
+                    }
                 },
             )
+        },
+        bottomBar = {
+            state.plant?.let { plant ->
+                val currentIndex = com.culture.tracker.domain.model.GrowthPhase.entries.indexOf(plant.currentPhase)
+                val nextPhase = com.culture.tracker.domain.model.GrowthPhase.entries.getOrNull(currentIndex + 1)
+                if (nextPhase != null) {
+                    val color = plant.currentPhase.themedColor()
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { viewModel.advanceToNextPhase() },
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = color),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, color),
+                    ) {
+                        Text("Passer en ${nextPhase.label.lowercase()}")
+                    }
+                }
+            }
         },
     ) { padding ->
         LazyColumn(
@@ -187,55 +226,131 @@ fun PlantDetailScreen(
             item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
 
             item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Text("Progression des phases", style = MaterialTheme.typography.titleMedium)
+                state.plant?.let { plant ->
+                    PhaseTimeline(currentPhase = plant.currentPhase, modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+
+            item {
+                state.plant?.let { plant ->
+                    val genetics = state.genetics.firstOrNull { it.id == plant.geneticsId }
+                    val currentPhaseStart = state.phaseHistory.lastOrNull { it.phase == plant.currentPhase && it.endDate == null }?.startDate
+                    val totalDays = ChronoUnit.DAYS.between(plant.startDate, LocalDate.now())
+                    val progress = currentPhaseStart?.let { com.culture.tracker.domain.phaseProgressOf(it, plant.currentPhase, genetics) }
+                    val latestHeight = state.heightHistory.lastOrNull()?.heightCm
+
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        val reachedPhases = state.phaseHistory.map { it.phase }.toSet()
-                        GrowthPhase.entries.forEach { phase ->
-                            val reached = phase in reachedPhases
-                            Box(
-                                modifier = Modifier.weight(1f).height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (reached) phase.themedColor() else MaterialTheme.colorScheme.surfaceVariant),
+                        DetailStatTile("Jour total", "$totalDays", Modifier.weight(1f))
+                        DetailStatTile(
+                            "Hauteur",
+                            latestHeight?.let { "${it.toInt()}cm" } ?: "—",
+                            Modifier.weight(1f),
+                        )
+                        DetailStatTile("J. de stade", progress?.daysInPhase?.toString() ?: "—", Modifier.weight(1f))
+                        DetailStatTile(
+                            "J. restants",
+                            progress?.let { if (it.remainingDays >= 0) "${it.remainingDays}" else "+${-it.remainingDays}" } ?: "—",
+                            Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
+            item {
+                state.plant?.let { plant ->
+                    val phaseColor = plant.currentPhase.themedColor()
+                    val totalDays = ChronoUnit.DAYS.between(plant.startDate, LocalDate.now())
+                    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = MaterialTheme.shapes.large) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Croissance", style = MaterialTheme.typography.titleMedium)
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        "cm / jour",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = HandoffColors.TextTertiary,
+                                    )
+                                    IconButton(onClick = { showAddHeightDialog = true }, modifier = Modifier.size(28.dp)) {
+                                        Icon(Icons.Filled.Add, contentDescription = "Ajouter un relevé de hauteur")
+                                    }
+                                }
+                            }
+                            GrowthChart(
+                                history = state.heightHistory,
+                                stageColor = phaseColor,
+                                totalDay = totalDays,
+                                modifier = Modifier.padding(top = 8.dp),
                             )
                         }
-                    }
-                    Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(GrowthPhase.entries.first().label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(GrowthPhase.entries.last().label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
             item { Text("Historique des phases", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp)) }
             items(state.phaseHistory, key = { it.id }) { phase ->
-                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier.size(36.dp).background(phase.phase.themedColor(), CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(phase.phase.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            }
-                            Column {
-                                Text(phase.phase.label, style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    "Du ${phase.startDate}" + (phase.endDate?.let { " au $it" } ?: " (en cours)"),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                val isOpenAndRevertible = phase.endDate == null && state.phaseHistory.size > 1
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart && isOpenAndRevertible) {
+                            viewModel.revertToPreviousPhase(phase)
+                            true
+                        } else {
+                            false
                         }
-                        IconButton(onClick = { editingPhase = phase }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Modifier la date de début")
+                    },
+                )
+                SwipeToDismissBox(
+                    state = dismissState,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    enableDismissFromStartToEnd = false,
+                    enableDismissFromEndToStart = isOpenAndRevertible,
+                    backgroundContent = {
+                        Box(
+                            modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium).background(HandoffColors.Danger.copy(alpha = 0.25f)),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = HandoffColors.Danger,
+                                modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                        }
+                    },
+                ) {
+                    Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).background(phase.phase.themedColor(), CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(phase.phase.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                                Column {
+                                    Text(phase.phase.label, style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "Du ${phase.startDate}" + (phase.endDate?.let { " au $it" } ?: " (en cours)"),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            IconButton(onClick = { editingPhase = phase }) {
+                                Icon(Icons.Filled.Edit, contentDescription = "Modifier la date de début")
+                            }
                         }
                     }
                 }
@@ -288,13 +403,65 @@ fun PlantDetailScreen(
                 environments = state.environments,
                 onCreateGenetics = { name, breeder, onCreated -> viewModel.createGenetics(name, breeder, onCreated) },
                 onDismiss = { showEditSheet = false },
-                onSave = { name, geneticsId, environmentId, watering, fertilizing, startDate ->
-                    viewModel.updatePlant(name, geneticsId, environmentId, watering, fertilizing, startDate)
+                onSave = { name, geneticsId, environmentId, watering, fertilizing, startDate, phase ->
+                    viewModel.updatePlant(name, geneticsId, environmentId, watering, fertilizing, startDate, phase)
                     showEditSheet = false
                 },
             )
         }
     }
+
+    if (showAddHeightDialog) {
+        AddHeightDialog(
+            onDismiss = { showAddHeightDialog = false },
+            onSave = { cm, date ->
+                viewModel.addHeightMeasurement(cm, date)
+                showAddHeightDialog = false
+            },
+        )
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Supprimer cette plante ?") },
+            text = { Text("Elle sera retirée de votre jardin actif. Ses données restent stockées localement.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.archivePlant()
+                    showDeleteConfirm = false
+                    onBack()
+                }) { Text("Supprimer", color = HandoffColors.Danger) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Annuler") } },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddHeightDialog(onDismiss: () -> Unit, onSave: (Double, LocalDate) -> Unit) {
+    var heightText by remember { mutableStateOf("") }
+    val date = LocalDate.now()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ajouter un relevé de hauteur") },
+        text = {
+            OutlinedTextField(
+                value = heightText,
+                onValueChange = { heightText = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("Hauteur (cm)") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { heightText.toDoubleOrNull()?.let { onSave(it, date) } },
+                enabled = heightText.toDoubleOrNull() != null,
+            ) { Text("Enregistrer") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -305,13 +472,15 @@ private fun EditPlantSheet(
     environments: List<com.culture.tracker.data.local.entity.Environment>,
     onCreateGenetics: (String, String?, (Long) -> Unit) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (String, Long?, Long?, Int?, Int?, LocalDate) -> Unit,
+    onSave: (String, Long?, Long?, Int?, Int?, LocalDate, GrowthPhase) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var name by remember { mutableStateOf(plant.name) }
     var selectedGeneticsId by remember { mutableStateOf(plant.geneticsId) }
     var newGeneticsName by remember { mutableStateOf("") }
     var selectedEnvironmentId by remember { mutableStateOf(plant.environmentId) }
+    var selectedPhase by remember { mutableStateOf(plant.currentPhase) }
+    var phaseExpanded by remember { mutableStateOf(false) }
     var wateringInterval by remember { mutableStateOf(plant.wateringIntervalDays?.toString() ?: "") }
     var fertilizingInterval by remember { mutableStateOf(plant.fertilizingIntervalDays?.toString() ?: "") }
     var startDate by remember { mutableStateOf(plant.startDate) }
@@ -322,9 +491,25 @@ private fun EditPlantSheet(
             modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Modifier la plante", style = MaterialTheme.typography.titleLarge)
+            SheetHeader("Modifier la plante", onClose = onDismiss)
 
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom de la plante") }, modifier = Modifier.fillMaxWidth())
+
+            ExposedDropdownMenuBox(expanded = phaseExpanded, onExpandedChange = { phaseExpanded = it }) {
+                OutlinedTextField(
+                    value = selectedPhase.label,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Phase actuelle") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = phaseExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                )
+                DropdownMenu(expanded = phaseExpanded, onDismissRequest = { phaseExpanded = false }) {
+                    GrowthPhase.entries.forEach { phase ->
+                        DropdownMenuItem(text = { Text(phase.label) }, onClick = { selectedPhase = phase; phaseExpanded = false })
+                    }
+                }
+            }
 
             DropdownField(
                 label = "Génétique (variété)",
@@ -383,6 +568,7 @@ private fun EditPlantSheet(
                         wateringInterval.toIntOrNull(),
                         fertilizingInterval.toIntOrNull(),
                         startDate,
+                        selectedPhase,
                     )
                 },
                 enabled = name.isNotBlank(),
@@ -407,5 +593,20 @@ private fun EditPlantSheet(
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Annuler") } },
         ) { DatePicker(state = datePickerState) }
+    }
+}
+
+@Composable
+private fun DetailStatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, shape = MaterialTheme.shapes.large) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Text(
+                label.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }

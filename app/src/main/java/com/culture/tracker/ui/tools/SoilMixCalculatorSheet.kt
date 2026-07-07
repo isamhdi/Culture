@@ -42,7 +42,7 @@ fun SoilMixCalculatorSheet(onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Mélange de terreau", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Mélange de terreau", onClose = onDismiss)
             Text(
                 "Répartit un volume total selon des proportions (%).",
                 style = MaterialTheme.typography.bodyMedium,

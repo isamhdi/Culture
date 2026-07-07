@@ -13,6 +13,7 @@ import com.culture.tracker.ui.garden.environments.EnvironmentDetailViewModel
 import com.culture.tracker.ui.garden.environments.EnvironmentsViewModel
 import com.culture.tracker.ui.garden.plants.PlantDetailViewModel
 import com.culture.tracker.ui.garden.plants.PlantsViewModel
+import com.culture.tracker.ui.genetics.GeneticsViewModel
 import com.culture.tracker.ui.home.HomeViewModel
 import com.culture.tracker.ui.journal.JournalViewModel
 import com.culture.tracker.ui.settings.SettingsViewModel
@@ -23,7 +24,9 @@ val android.content.Context.dataStore by preferencesDataStore(name = "culture_se
 
 val appModule = module {
     single {
-        Room.databaseBuilder(get(), AppDatabase::class.java, AppDatabase.DATABASE_NAME).build()
+        Room.databaseBuilder(get(), AppDatabase::class.java, AppDatabase.DATABASE_NAME)
+            .fallbackToDestructiveMigration(true)
+            .build()
     }
     single { get<AppDatabase>().geneticsDao() }
     single { get<AppDatabase>().environmentDao() }
@@ -33,10 +36,11 @@ val appModule = module {
     single { get<AppDatabase>().fertilizerDao() }
     single { get<AppDatabase>().environmentReadingDao() }
     single { get<AppDatabase>().plantPhotoDao() }
+    single { get<AppDatabase>().heightMeasurementDao() }
 
     single { get<android.content.Context>().dataStore }
 
-    single { GardenRepository(get(), get(), get(), get()) }
+    single { GardenRepository(get(), get(), get(), get(), get()) }
     single { CalendarRepository(get(), get(), get()) }
     single { PhotoRepository(get(), get()) }
     single { SettingsRepository(get()) }
@@ -50,4 +54,5 @@ val appModule = module {
     viewModel { CalendarViewModel(get(), get()) }
     viewModel { JournalViewModel(get(), get()) }
     viewModel { SettingsViewModel(get()) }
+    viewModel { GeneticsViewModel(get()) }
 }

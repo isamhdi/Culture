@@ -155,7 +155,7 @@ private fun AddReadingSheet(onDismiss: () -> Unit, onSave: (Double, Double) -> U
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Nouveau relevé", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Nouveau relevé", onClose = onDismiss)
             OutlinedTextField(
                 value = temperature,
                 onValueChange = { temperature = it.filter { c -> c.isDigit() || c == '.' || c == '-' } },

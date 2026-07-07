@@ -9,4 +9,10 @@ data class Genetics(
     val name: String,
     val breeder: String? = null,
     val notes: String? = null,
+    // Durées de phase (en jours) spécifiques à cette variété ; null = utiliser la durée par défaut.
+    val germinationDays: Int? = null,
+    val croissanceDays: Int? = null,
+    val floraisonDays: Int? = null,
+    val sechageDays: Int? = null,
+    val maturationDays: Int? = null,
 )

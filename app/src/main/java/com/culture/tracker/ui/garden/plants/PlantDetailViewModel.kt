@@ -6,12 +6,14 @@ import com.culture.tracker.data.local.entity.CalendarAction
 import com.culture.tracker.data.local.entity.Environment
 import com.culture.tracker.data.local.entity.Fertilizer
 import com.culture.tracker.data.local.entity.Genetics
+import com.culture.tracker.data.local.entity.HeightMeasurement
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.local.entity.PlantPhoto
 import com.culture.tracker.data.repository.CalendarRepository
 import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
+import com.culture.tracker.domain.model.GrowthPhase
 import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +30,7 @@ data class PlantDetailUiState(
     val genetics: List<Genetics> = emptyList(),
     val environments: List<Environment> = emptyList(),
     val fertilizers: List<Fertilizer> = emptyList(),
+    val heightHistory: List<HeightMeasurement> = emptyList(),
 )
 
 class PlantDetailViewModel(
@@ -45,6 +48,7 @@ class PlantDetailViewModel(
         gardenRepository.observeGenetics(),
         gardenRepository.observeEnvironments(),
         calendarRepository.observeFertilizers(),
+        gardenRepository.observeHeightHistory(plantId),
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         PlantDetailUiState(
@@ -55,6 +59,7 @@ class PlantDetailViewModel(
             genetics = values[4] as List<Genetics>,
             environments = values[5] as List<Environment>,
             fertilizers = values[6] as List<Fertilizer>,
+            heightHistory = values[7] as List<HeightMeasurement>,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PlantDetailUiState())
 
@@ -76,6 +81,22 @@ class PlantDetailViewModel(
         viewModelScope.launch { uiState.value.plant?.let { gardenRepository.archivePlant(it) } }
     }
 
+    fun advanceToNextPhase() {
+        val plant = uiState.value.plant ?: return
+        val currentIndex = GrowthPhase.entries.indexOf(plant.currentPhase)
+        val nextPhase = GrowthPhase.entries.getOrNull(currentIndex + 1) ?: return
+        viewModelScope.launch { gardenRepository.changePhase(plantId, nextPhase, LocalDate.now()) }
+    }
+
+    /** Supprime la phase en cours (glissement dans l'historique) et revient à la phase précédente. */
+    fun revertToPreviousPhase(openPhase: PhaseHistory) {
+        viewModelScope.launch { gardenRepository.revertToPreviousPhase(openPhase) }
+    }
+
+    fun addHeightMeasurement(heightCm: Double, date: LocalDate) {
+        viewModelScope.launch { gardenRepository.addHeightMeasurement(plantId, date, heightCm) }
+    }
+
     fun createGenetics(name: String, breeder: String?, onCreated: (Long) -> Unit) {
         viewModelScope.launch {
             val id = gardenRepository.createGenetics(Genetics(name = name, breeder = breeder))
@@ -90,9 +111,13 @@ class PlantDetailViewModel(
         wateringIntervalDays: Int?,
         fertilizingIntervalDays: Int?,
         startDate: LocalDate,
+        phase: GrowthPhase,
     ) {
         val current = uiState.value.plant ?: return
         viewModelScope.launch {
+            if (phase != current.currentPhase) {
+                gardenRepository.changePhase(plantId, phase, LocalDate.now())
+            }
             gardenRepository.updatePlant(
                 current.copy(
                     name = name,
@@ -101,6 +126,7 @@ class PlantDetailViewModel(
                     wateringIntervalDays = wateringIntervalDays,
                     fertilizingIntervalDays = fertilizingIntervalDays,
                     startDate = startDate,
+                    currentPhase = phase,
                 ),
             )
             // Garde la première entrée d'historique (germination) synchronisée avec la date de début.

@@ -31,6 +31,7 @@ import com.culture.tracker.ui.calendar.CalendarScreen
 import com.culture.tracker.ui.garden.GardenScreen
 import com.culture.tracker.ui.garden.environments.EnvironmentDetailScreen
 import com.culture.tracker.ui.garden.plants.PlantDetailScreen
+import com.culture.tracker.ui.genetics.GeneticsScreen
 import com.culture.tracker.ui.home.HomeScreen
 import com.culture.tracker.ui.journal.JournalScreen
 import com.culture.tracker.ui.settings.SettingsScreen
@@ -40,19 +41,21 @@ import com.culture.tracker.ui.tools.ToolsScreen
 fun CultureNavHost() {
     val navController = rememberNavController()
 
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Scaffold(
         bottomBar = {
             val backStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = backStackEntry?.destination
             FloatingBottomNav(
                 isSelected = { tab -> currentRoute?.hierarchy?.any { it.route == tab.route } == true },
-                onTabSelected = { tab ->
-                    navController.navigate(tab.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onTabSelected = { tab -> navigateToTab(tab.route) },
             )
         },
     ) { padding ->
@@ -62,7 +65,11 @@ fun CultureNavHost() {
             modifier = Modifier.padding(padding),
         ) {
             composable(BottomTab.Home.route) {
-                HomeScreen(onPlantClick = { plantId -> navController.navigate(Routes.plantDetail(plantId)) })
+                HomeScreen(
+                    onPlantClick = { plantId -> navController.navigate(Routes.plantDetail(plantId)) },
+                    onNavigateToCalendar = { navigateToTab(BottomTab.Calendar.route) },
+                    onNavigateToGarden = { navigateToTab(BottomTab.Garden.route) },
+                )
             }
             composable(BottomTab.Garden.route) {
                 GardenScreen(
@@ -73,9 +80,13 @@ fun CultureNavHost() {
             composable(BottomTab.Calendar.route) { CalendarScreen() }
             composable(BottomTab.Journal.route) { JournalScreen() }
             composable(BottomTab.Settings.route) {
-                SettingsScreen(onOpenTools = { navController.navigate("tools") })
+                SettingsScreen(
+                    onOpenTools = { navController.navigate("tools") },
+                    onOpenGenetics = { navController.navigate("genetics") },
+                )
             }
             composable("tools") { ToolsScreen(onBack = { navController.popBackStack() }) }
+            composable("genetics") { GeneticsScreen(onBack = { navController.popBackStack() }) }
 
             composable(
                 route = Routes.PLANT_DETAIL,

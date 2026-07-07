@@ -17,6 +17,9 @@ interface PhaseHistoryDao {
     @Query("SELECT * FROM phase_history WHERE plantId = :plantId ORDER BY startDate ASC")
     suspend fun getForPlant(plantId: Long): List<PhaseHistory>
 
+    @Query("SELECT * FROM phase_history WHERE endDate IS NULL")
+    fun observeAllOpenPhases(): Flow<List<PhaseHistory>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(phaseHistory: PhaseHistory): Long
 

@@ -32,14 +32,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-private val defaultDurations = linkedMapOf(
-    GrowthPhase.GERMINATION to 5,
-    GrowthPhase.SEMIS to 14,
-    GrowthPhase.CROISSANCE to 30,
-    GrowthPhase.FLORAISON to 56,
-    GrowthPhase.SECHAGE to 10,
-    GrowthPhase.MATURATION to 14,
-)
+private val defaultDurations = linkedMapOf(*GrowthPhase.entries.map { it to it.typicalDurationDays }.toTypedArray())
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +44,7 @@ fun StageDatesCalculatorSheet(onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Dates de stade", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Dates de stade", onClose = onDismiss)
             Text(
                 "Estime les dates de chaque phase à partir d'une date de départ et de durées modifiables.",
                 style = MaterialTheme.typography.bodyMedium,

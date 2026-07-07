@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.culture.tracker.data.local.entity.CalendarAction
 import com.culture.tracker.data.local.entity.Environment
 import com.culture.tracker.data.local.entity.EnvironmentReading
+import com.culture.tracker.data.local.entity.Genetics
+import com.culture.tracker.data.local.entity.HeightMeasurement
+import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.repository.CalendarRepository
 import com.culture.tracker.data.repository.GardenRepository
@@ -12,31 +15,32 @@ import com.culture.tracker.data.repository.PhotoRepository
 import com.culture.tracker.domain.MoonPhase
 import com.culture.tracker.domain.MoonPhaseCalculator
 import com.culture.tracker.domain.model.ActionType
+import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 data class GrowthRiskFactor(val label: String, val detail: String)
 
 data class HomeUiState(
-    val visibleMonth: YearMonth = YearMonth.now(),
     val selectedDate: LocalDate = LocalDate.now(),
     val moonPhase: MoonPhase = MoonPhaseCalculator.phaseFor(LocalDate.now()),
-    val actionsInMonth: List<CalendarAction> = emptyList(),
+    val actionsInWeek: List<CalendarAction> = emptyList(),
     val riskFactors: List<GrowthRiskFactor> = emptyList(),
     val plants: List<Plant> = emptyList(),
     val environments: List<Environment> = emptyList(),
     val thumbnails: Map<Long, String> = emptyMap(),
+    val genetics: List<Genetics> = emptyList(),
+    val openPhaseByPlant: Map<Long, PhaseHistory> = emptyMap(),
+    val latestHeightByPlant: Map<Long, Double> = emptyMap(),
     val todayScheduledCount: Int = 0,
     val todayDoneCount: Int = 0,
 ) {
-    val actionsToday: Int get() = actionsInMonth.count { it.date == LocalDate.now() }
+    val actionsToday: Int get() = actionsInWeek.count { it.date == LocalDate.now() }
     val todayCompletionRatio: Float
         get() = if (todayScheduledCount == 0) 1f else (todayDoneCount.toFloat() / todayScheduledCount.toFloat()).coerceIn(0f, 1f)
 }
@@ -46,18 +50,17 @@ private const val IDEAL_TEMP_MAX = 28.0
 private const val IDEAL_HUMIDITY_MIN = 40.0
 private const val IDEAL_HUMIDITY_MAX = 70.0
 
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val gardenRepository: GardenRepository,
     private val calendarRepository: CalendarRepository,
     private val photoRepository: PhotoRepository,
 ) : ViewModel() {
 
-    private val visibleMonth = MutableStateFlow(YearMonth.now())
     private val selectedDate = MutableStateFlow(LocalDate.now())
 
-    private val actionsInMonth = visibleMonth.flatMapLatest { month ->
-        calendarRepository.observeActionsBetween(month.atDay(1), month.atEndOfMonth())
+    private val actionsInWeek = run {
+        val monday = LocalDate.now().with(DayOfWeek.MONDAY)
+        calendarRepository.observeActionsBetween(monday, monday.plusDays(6))
     }
 
     private val riskFactors = combine(
@@ -67,34 +70,40 @@ class HomeViewModel(
     ) { environments, readings, plants -> computeRiskFactors(environments.associateBy { it.id }, readings, plants) }
 
     val uiState: StateFlow<HomeUiState> = combine(
-        visibleMonth,
         selectedDate,
-        actionsInMonth,
+        actionsInWeek,
         riskFactors,
         gardenRepository.observePlants(),
         gardenRepository.observeEnvironments(),
         photoRepository.observeLatestPerPlant(),
+        gardenRepository.observeGenetics(),
+        gardenRepository.observeAllOpenPhases(),
+        gardenRepository.observeLatestHeights(),
     ) { values ->
         @Suppress("UNCHECKED_CAST")
-        val month = values[0] as YearMonth
-        val selected = values[1] as LocalDate
-        val actions = values[2] as List<CalendarAction>
-        val risks = values[3] as List<GrowthRiskFactor>
-        val plants = values[4] as List<Plant>
-        val environments = values[5] as List<Environment>
-        val photos = values[6] as List<com.culture.tracker.data.local.entity.PlantPhoto>
+        val selected = values[0] as LocalDate
+        val actions = values[1] as List<CalendarAction>
+        val risks = values[2] as List<GrowthRiskFactor>
+        val plants = values[3] as List<Plant>
+        val environments = values[4] as List<Environment>
+        val photos = values[5] as List<com.culture.tracker.data.local.entity.PlantPhoto>
+        val genetics = values[6] as List<Genetics>
+        val openPhases = values[7] as List<PhaseHistory>
+        val heights = values[8] as List<HeightMeasurement>
         HomeUiState(
-            visibleMonth = month,
             selectedDate = selected,
             moonPhase = MoonPhaseCalculator.phaseFor(selected),
-            actionsInMonth = actions,
+            actionsInWeek = actions,
             riskFactors = risks,
             plants = plants,
             environments = environments,
             thumbnails = photos.associate { it.plantId to it.filePath },
+            genetics = genetics,
+            openPhaseByPlant = openPhases.associateBy { it.plantId },
+            latestHeightByPlant = heights.associate { it.plantId to it.heightCm },
         )
     }.map { base ->
-        val (scheduled, done) = computeTodayProgress(base.plants, base.actionsInMonth.filter { it.date == LocalDate.now() })
+        val (scheduled, done) = computeTodayProgress(base.plants, base.actionsInWeek.filter { it.date == LocalDate.now() })
         base.copy(todayScheduledCount = scheduled, todayDoneCount = done)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -123,14 +132,6 @@ class HomeViewModel(
 
     fun onDateSelected(date: LocalDate) {
         selectedDate.value = date
-    }
-
-    fun onPreviousMonth() {
-        visibleMonth.value = visibleMonth.value.minusMonths(1)
-    }
-
-    fun onNextMonth() {
-        visibleMonth.value = visibleMonth.value.plusMonths(1)
     }
 
     private fun computeRiskFactors(

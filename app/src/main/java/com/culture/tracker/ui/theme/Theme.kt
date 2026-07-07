@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.culture.tracker.data.repository.ThemeMode
 
@@ -31,8 +32,8 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = GreenPrimaryDark,
-    onPrimary = GreenOnPrimaryDark,
+    primary = Color(0xFF6ED274),
+    onPrimary = HandoffColors.TextOnAccent,
     primaryContainer = GreenPrimaryContainerDark,
     onPrimaryContainer = GreenOnPrimaryContainerDark,
     secondary = EarthSecondaryDark,
@@ -43,16 +44,27 @@ private val DarkColors = darkColorScheme(
     onTertiary = SunOnTertiaryDark,
     tertiaryContainer = SunTertiaryContainerDark,
     onTertiaryContainer = SunOnTertiaryContainerDark,
-    background = BackgroundDark,
-    onBackground = OnBackgroundDark,
-    surface = SurfaceDark,
-    onSurface = OnSurfaceDark,
+    background = HandoffColors.BackgroundApp,
+    onBackground = HandoffColors.TextPrimary,
+    surface = HandoffColors.SurfaceCard,
+    onSurface = HandoffColors.TextPrimary,
+    surfaceContainer = HandoffColors.SurfaceCard,
+    surfaceContainerHigh = Color(0xFF171F1A),
+    surfaceContainerHighest = Color(0xFF1B231D),
+    surfaceContainerLow = HandoffColors.BackgroundApp,
+    surfaceContainerLowest = HandoffColors.BackgroundApp,
+    surfaceVariant = HandoffColors.SurfaceCard,
+    onSurfaceVariant = HandoffColors.TextSecondary,
+    outline = HandoffColors.BorderForm,
+    outlineVariant = HandoffColors.BorderCard,
+    error = HandoffColors.Danger,
+    onError = HandoffColors.TextOnAccent,
 )
 
 @Composable
 fun CultureTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val systemDark = isSystemInDarkTheme()

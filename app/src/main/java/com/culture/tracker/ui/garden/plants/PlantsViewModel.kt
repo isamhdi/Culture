@@ -4,9 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.culture.tracker.data.local.entity.Environment
 import com.culture.tracker.data.local.entity.Genetics
+import com.culture.tracker.data.local.entity.HeightMeasurement
+import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
+import com.culture.tracker.domain.defaultHeightCmFor
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PropagationType
 import java.time.LocalDate
@@ -21,6 +24,8 @@ data class PlantsUiState(
     val genetics: List<Genetics> = emptyList(),
     val environments: List<Environment> = emptyList(),
     val thumbnails: Map<Long, String> = emptyMap(),
+    val openPhaseByPlant: Map<Long, PhaseHistory> = emptyMap(),
+    val latestHeightByPlant: Map<Long, Double> = emptyMap(),
 )
 
 class PlantsViewModel(
@@ -33,8 +38,24 @@ class PlantsViewModel(
         repository.observeGenetics(),
         repository.observeEnvironments(),
         photoRepository.observeLatestPerPlant(),
-    ) { plants, genetics, environments, photos ->
-        PlantsUiState(plants, genetics, environments, photos.associate { it.plantId to it.filePath })
+        repository.observeAllOpenPhases(),
+        repository.observeLatestHeights(),
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val plants = values[0] as List<Plant>
+        val genetics = values[1] as List<Genetics>
+        val environments = values[2] as List<Environment>
+        val photos = values[3] as List<com.culture.tracker.data.local.entity.PlantPhoto>
+        val openPhases = values[4] as List<PhaseHistory>
+        val heights = values[5] as List<HeightMeasurement>
+        PlantsUiState(
+            plants = plants,
+            genetics = genetics,
+            environments = environments,
+            thumbnails = photos.associate { it.plantId to it.filePath },
+            openPhaseByPlant = openPhases.associateBy { it.plantId },
+            latestHeightByPlant = heights.associate { it.plantId to it.heightCm },
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PlantsUiState())
 
     fun createGenetics(name: String, breeder: String?, onCreated: (Long) -> Unit) {
@@ -66,6 +87,7 @@ class PlantsViewModel(
                     wateringIntervalDays = wateringIntervalDays,
                     fertilizingIntervalDays = fertilizingIntervalDays,
                 ),
+                initialHeightCm = defaultHeightCmFor(startingPhase),
             )
         }
     }

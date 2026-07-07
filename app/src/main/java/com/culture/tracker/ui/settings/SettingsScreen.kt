@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Yard
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -36,7 +37,7 @@ import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onOpenTools: () -> Unit = {}, viewModel: SettingsViewModel = koinViewModel()) {
+fun SettingsScreen(onOpenTools: () -> Unit = {}, onOpenGenetics: () -> Unit = {}, viewModel: SettingsViewModel = koinViewModel()) {
     val settings by viewModel.settings.collectAsState()
 
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_settings)) }) }) { padding ->
@@ -59,6 +60,29 @@ fun SettingsScreen(onOpenTools: () -> Unit = {}, viewModel: SettingsViewModel = 
                         Text("Outils de culture", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "Dates de stade, éclairage, terreau, conversions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = null)
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenGenetics,
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Yard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f)) {
+                        Text("Variétés", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Gérer les génétiques et leurs durées de phase",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

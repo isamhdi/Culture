@@ -38,7 +38,7 @@ fun LightingCalculatorSheet(onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Éclairage", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Éclairage", onClose = onDismiss)
             Text(
                 "Calcule la densité de puissance (W/m²) de votre tente selon sa surface.",
                 style = MaterialTheme.typography.bodyMedium,

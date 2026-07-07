@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Spa
@@ -36,14 +34,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.culture.tracker.R
 import com.culture.tracker.ui.components.CircularProgressRing
-import com.culture.tracker.ui.components.MonthCalendar
 import com.culture.tracker.ui.components.PlantCard
 import com.culture.tracker.ui.components.StatTile
+import com.culture.tracker.ui.components.WeekCalendar
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onPlantClick: (Long) -> Unit = {}) {
+fun HomeScreen(
+    viewModel: HomeViewModel = koinViewModel(),
+    onPlantClick: (Long) -> Unit = {},
+    onNavigateToCalendar: () -> Unit = {},
+    onNavigateToGarden: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -57,6 +60,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onPlantClick: (Long) 
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    onClick = onNavigateToCalendar,
                     shape = MaterialTheme.shapes.extraLarge,
                 ) {
                     Row(
@@ -101,6 +105,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onPlantClick: (Long) 
                         modifier = Modifier.weight(1f),
                         contentColor = Color.White,
                         containerBrush = Brush.linearGradient(listOf(Color(0xFF3B6939), Color(0xFF1BAF7A))),
+                        onClick = onNavigateToGarden,
                     )
                     StatTile(
                         label = "Alertes",
@@ -114,35 +119,37 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onPlantClick: (Long) 
             }
 
             if (state.plants.isNotEmpty()) {
-                item { Text("Vos plantes", style = MaterialTheme.typography.titleMedium) }
                 item {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(state.plants, key = { it.id }) { plant ->
-                            val envName = state.environments.firstOrNull { it.id == plant.environmentId }?.name
-                            PlantCard(
-                                plant = plant,
-                                thumbnailPath = state.thumbnails[plant.id],
-                                environmentName = envName,
-                                onClick = { onPlantClick(plant.id) },
-                                modifier = Modifier.width(160.dp),
-                            )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Vos plantes", style = MaterialTheme.typography.titleMedium)
+                        if (state.plants.size > 3) {
+                            androidx.compose.material3.TextButton(onClick = onNavigateToGarden) { Text("Tout voir") }
                         }
                     }
+                }
+                items(state.plants.take(3), key = { it.id }) { plant ->
+                    val genetics = state.genetics.firstOrNull { it.id == plant.geneticsId }
+                    PlantCard(
+                        plant = plant,
+                        thumbnailPath = state.thumbnails[plant.id],
+                        genetics = genetics,
+                        openPhase = state.openPhaseByPlant[plant.id],
+                        heightCm = state.latestHeightByPlant[plant.id],
+                        onClick = { onPlantClick(plant.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
 
             item {
                 Card {
-                    MonthCalendar(
-                        yearMonth = state.visibleMonth,
+                    WeekCalendar(
                         selectedDate = state.selectedDate,
                         dotsForDate = { date ->
-                            state.actionsInMonth.filter { it.date == date }
+                            state.actionsInWeek.filter { it.date == date }
                                 .map { com.culture.tracker.ui.components.DotSpec(androidx.compose.ui.graphics.Color(it.actionType.colorHex)) }
                         },
                         onDateClick = viewModel::onDateSelected,
-                        onPreviousMonth = viewModel::onPreviousMonth,
-                        onNextMonth = viewModel::onNextMonth,
                         modifier = Modifier.padding(12.dp),
                     )
                 }

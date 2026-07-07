@@ -122,7 +122,7 @@ private fun CreateFertilizerSheet(onDismiss: () -> Unit, onCreate: (String, Stri
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Nouvel engrais", style = MaterialTheme.typography.titleLarge)
+            com.culture.tracker.ui.components.SheetHeader("Nouvel engrais", onClose = onDismiss)
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = npk, onValueChange = { npk = it }, label = { Text("NPK (ex : 5-10-5)") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())

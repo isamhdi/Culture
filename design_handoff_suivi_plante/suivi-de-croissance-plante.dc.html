@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: oklch(0.13 0.01 155); }
+  </style>
+</helmet>
+
+<div style="min-height: 100vh; width: 100%; display: flex; align-items: center; justify-content: center; padding: 40px 20px; box-sizing: border-box; background: oklch(0.13 0.01 155);">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+
+    <div style="height: 100%; width: 100%; display: flex; flex-direction: column; background: oklch(0.155 0.014 155); font-family: 'Space Grotesk', sans-serif; color: oklch(0.96 0.004 155); box-sizing: border-box; padding-top: 54px;">
+
+      <!-- ===== LIST SCREEN ===== -->
+      <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="padding: 6px 20px 14px; display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;">
+            <div>
+              <div style="font-size: 12px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: oklch(0.6 0.02 145); text-transform: uppercase; margin-bottom: 4px;">Chanvre &middot; sans THC</div>
+              <div style="font-size: 26px; font-weight: 700;">Mes plantes</div>
+            </div>
+            <button onClick="{{ goAdd }}" style="width: 44px; height: 44px; border-radius: 14px; background: oklch(0.78 0.16 145); border: none; color: oklch(0.15 0.01 155); font-size: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;">+</button>
+          </div>
+
+          <div style="display: flex; gap: 8px; padding: 0 20px 16px; flex-shrink: 0; overflow-x: auto;">
+            <sc-for list="{{ filterChips }}" as="chip" hint-placeholder-count="4">
+              <button onClick="{{ chip.onClick }}" style="{{ chip.style }}">{{ chip.label }}</button>
+            </sc-for>
+          </div>
+
+          <div style="flex: 1; overflow-y: auto; padding: 0 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+            <sc-for list="{{ plantCards }}" as="p" hint-placeholder-count="4">
+              <button onClick="{{ p.onClick }}" style="all: unset; box-sizing: border-box; cursor: pointer; background: oklch(0.2 0.015 155); border: 1px solid oklch(0.28 0.018 155); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="{{ p.avatarStyle }}">{{ p.initial }}</div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 16px; font-weight: 600;">{{ p.name }}</div>
+                    <div style="font-size: 13px; color: oklch(0.65 0.012 155); margin-top: 2px;">{{ p.variety }}</div>
+                  </div>
+                  <div style="{{ p.badgeStyle }}">{{ p.stageLabel }}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="flex: 1; height: 6px; border-radius: 3px; background: oklch(0.28 0.014 155); overflow: hidden;">
+                    <div style="{{ p.progressBarStyle }}"></div>
+                  </div>
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: oklch(0.65 0.012 155); white-space: nowrap;">J{{ p.dayInStage }}/{{ p.stageDuration }}</div>
+                </div>
+                <div style="display: flex; gap: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: oklch(0.58 0.012 155);">
+                  <span>H {{ p.heightCm }}cm</span>
+                  <span>Jour {{ p.totalDay }}</span>
+                </div>
+              </button>
+            </sc-for>
+            <sc-if value="{{ noPlantsInFilter }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align: center; padding: 40px 20px; color: oklch(0.55 0.012 155); font-size: 14px;">Aucune plante dans ce stade.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===== DETAIL SCREEN ===== -->
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 6px 20px 14px; flex-shrink: 0;">
+            <button onClick="{{ goList }}" style="width: 40px; height: 40px; border-radius: 12px; background: oklch(0.22 0.015 155); border: 1px solid oklch(0.3 0.018 155); color: oklch(0.9 0.005 155); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;">&larr;</button>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 19px; font-weight: 700;">{{ selected.name }}</div>
+              <div style="font-size: 12px; color: oklch(0.62 0.012 155);">{{ selected.variety }}</div>
+            </div>
+            <button onClick="{{ deleteSelected }}" style="width: 40px; height: 40px; border-radius: 12px; background: oklch(0.22 0.015 155); border: 1px solid oklch(0.3 0.018 155); color: oklch(0.68 0.13 25); font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer;">&#10005;</button>
+          </div>
+
+          <div style="flex: 1; overflow-y: auto; padding: 4px 20px 28px; display: flex; flex-direction: column; gap: 20px;">
+
+            <!-- stage stepper -->
+            <div style="display: flex; align-items: center;">
+              <sc-for list="{{ selected.steps }}" as="s" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; flex: 1;">
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <div style="{{ s.dotStyle }}"></div>
+                    <div style="{{ s.labelStyle }}">{{ s.label }}</div>
+                  </div>
+                  <sc-if value="{{ s.showLine }}" hint-placeholder-val="{{ true }}">
+                    <div style="{{ s.lineStyle }}"></div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- stats -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              <div style="background: oklch(0.2 0.015 155); border: 1px solid oklch(0.28 0.018 155); border-radius: 14px; padding: 12px; text-align: center;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600;">{{ selected.totalDay }}</div>
+                <div style="font-size: 10px; color: oklch(0.6 0.012 155); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px;">Jour total</div>
+              </div>
+              <div style="background: oklch(0.2 0.015 155); border: 1px solid oklch(0.28 0.018 155); border-radius: 14px; padding: 12px; text-align: center;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600;">{{ selected.heightCm }}<span style="font-size: 12px; color: oklch(0.6 0.012 155);">cm</span></div>
+                <div style="font-size: 10px; color: oklch(0.6 0.012 155); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px;">Hauteur</div>
+              </div>
+              <div style="background: oklch(0.2 0.015 155); border: 1px solid oklch(0.28 0.018 155); border-radius: 14px; padding: 12px; text-align: center;">
+                <div style="{{ selected.stageValStyle }}">{{ selected.dayInStage }}</div>
+                <div style="font-size: 10px; color: oklch(0.6 0.012 155); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px;">J. de stade</div>
+              </div>
+            </div>
+
+            <!-- chart -->
+            <div style="background: oklch(0.2 0.015 155); border: 1px solid oklch(0.28 0.018 155); border-radius: 16px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+                <div style="font-size: 13px; font-weight: 600; color: oklch(0.85 0.005 155);">Croissance</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: oklch(0.6 0.012 155);">cm / jour</div>
+              </div>
+              <svg viewBox="0 0 300 140" style="width: 100%; height: 140px; overflow: visible;">
+                <sc-for list="{{ selected.chart.gridLines }}" as="g" hint-placeholder-count="4">
+                  <line x1="0" x2="300" y1="{{ g.y }}" y2="{{ g.y }}" stroke="oklch(0.3 0.015 155)" stroke-width="1" stroke-dasharray="2,4"></line>
+                </sc-for>
+                <path d="{{ selected.chart.areaPath }}" fill="{{ selected.chart.areaFill }}"></path>
+                <polyline points="{{ selected.chart.linePoints }}" fill="none" stroke="{{ selected.stageColor }}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                <circle cx="{{ selected.chart.lastX }}" cy="{{ selected.chart.lastY }}" r="4.5" fill="{{ selected.stageColor }}"></circle>
+              </svg>
+              <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: oklch(0.55 0.012 155); margin-top: 6px;">
+                <span>J0</span>
+                <span>J{{ selected.totalDay }}</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ selected.canAdvance }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ advanceStage }}" style="width: 100%; padding: 15px; border-radius: 14px; border: none; background: {{ selected.stageColor }}; color: oklch(0.15 0.01 155); font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer;">{{ selected.advanceLabel }}</button>
+            </sc-if>
+            <sc-if value="{{ selected.isDone }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align: center; padding: 14px; border-radius: 14px; background: oklch(0.25 0.02 320 / 0.25); border: 1px solid oklch(0.5 0.06 320); font-size: 13px; color: oklch(0.85 0.03 320);">Prête pour la récolte</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===== ADD SCREEN ===== -->
+      <sc-if value="{{ isAdd }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 6px 20px 18px; flex-shrink: 0;">
+            <button onClick="{{ goList }}" style="width: 40px; height: 40px; border-radius: 12px; background: oklch(0.22 0.015 155); border: 1px solid oklch(0.3 0.018 155); color: oklch(0.9 0.005 155); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;">&larr;</button>
+            <div style="font-size: 19px; font-weight: 700;">Nouvelle plante</div>
+          </div>
+
+          <div style="flex: 1; overflow-y: auto; padding: 4px 20px 28px; display: flex; flex-direction: column; gap: 18px;">
+            <div>
+              <div style="font-size: 12px; color: oklch(0.62 0.012 155); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Nom</div>
+              <input value="{{ form.name }}" onChange="{{ setFormName }}" placeholder="ex. Parcelle A-3" style="width: 100%; box-sizing: border-box; background: oklch(0.2 0.015 155); border: 1px solid oklch(0.3 0.018 155); border-radius: 12px; padding: 14px; color: oklch(0.95 0.004 155); font-size: 15px; font-family: 'Space Grotesk', sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size: 12px; color: oklch(0.62 0.012 155); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Variete (cultivar)</div>
+              <input value="{{ form.variety }}" onChange="{{ setFormVariety }}" placeholder="ex. Fedora 17" style="width: 100%; box-sizing: border-box; background: oklch(0.2 0.015 155); border: 1px solid oklch(0.3 0.018 155); border-radius: 12px; padding: 14px; color: oklch(0.95 0.004 155); font-size: 15px; font-family: 'Space Grotesk', sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size: 12px; color: oklch(0.62 0.012 155); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Stade de depart</div>
+              <div style="display: flex; gap: 8px;">
+                <sc-for list="{{ formStageOptions }}" as="opt" hint-placeholder-count="3">
+                  <button onClick="{{ opt.onClick }}" style="{{ opt.style }}">{{ opt.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <button onClick="{{ submitAdd }}" disabled="{{ submitDisabled }}" style="{{ submitStyle }}">Ajouter la plante</button>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const STAGE_ORDER = ['semis', 'croissance', 'floraison'];
+const STAGE_META = {
+  semis:      { label: 'Semis',      color: 'oklch(0.78 0.13 230)', duration: 14 },
+  croissance: { label: 'Croissance', color: 'oklch(0.78 0.16 145)', duration: 35 },
+  floraison:  { label: 'Floraison',  color: 'oklch(0.78 0.15 320)', duration: 56 },
+};
+
+const SEED_PLANTS = [
+  { id: 1, name: 'Parcelle A-1', variety: 'Fedora 17', stage: 'floraison', dayInStage: 22, totalDay: 71, heightCm: 168,
+    heightHistory: [4, 12, 28, 55, 90, 125, 150, 168] },
+  { id: 2, name: 'Parcelle A-2', variety: 'Futura 75', stage: 'croissance', dayInStage: 18, totalDay: 32, heightCm: 84,
+    heightHistory: [3, 10, 22, 40, 58, 74, 84] },
+  { id: 3, name: 'Bac interieur 1', variety: 'Finola', stage: 'semis', dayInStage: 6, totalDay: 6, heightCm: 9,
+    heightHistory: [1, 3, 5, 7, 9] },
+  { id: 4, name: 'Parcelle B-1', variety: 'Santhica 27', stage: 'floraison', dayInStage: 41, totalDay: 96, heightCm: 205,
+    heightHistory: [5, 20, 48, 88, 130, 165, 190, 205] },
+  { id: 5, name: 'Bac interieur 2', variety: 'USO 31', stage: 'croissance', dayInStage: 9, totalDay: 23, heightCm: 46,
+    heightHistory: [2, 8, 18, 32, 46] },
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: 'list',
+    filter: 'all',
+    selectedId: null,
+    plants: SEED_PLANTS,
+    form: { name: '', variety: '', stage: 'semis' },
+  };
+
+  goAdd = () => this.setState({ screen: 'add', form: { name: '', variety: '', stage: 'semis' } });
+  goList = () => this.setState({ screen: 'list', selectedId: null });
+  openDetail = (id) => this.setState({ screen: 'detail', selectedId: id });
+  setFilter = (f) => this.setState({ filter: f });
+
+  setFormName = (e) => this.setState((s) => ({ form: { ...s.form, name: e.target.value } }));
+  setFormVariety = (e) => this.setState((s) => ({ form: { ...s.form, variety: e.target.value } }));
+  setFormStage = (stage) => this.setState((s) => ({ form: { ...s.form, stage } }));
+
+  submitAdd = () => {
+    const { form, plants } = this.state;
+    if (!form.name.trim()) return;
+    const nextId = Math.max(0, ...plants.map((p) => p.id)) + 1;
+    const newPlant = {
+      id: nextId,
+      name: form.name.trim(),
+      variety: form.variety.trim() || 'Cultivar non specifie',
+      stage: form.stage,
+      dayInStage: 0,
+      totalDay: 0,
+      heightCm: form.stage === 'semis' ? 1 : form.stage === 'croissance' ? 20 : 60,
+      heightHistory: [form.stage === 'semis' ? 1 : form.stage === 'croissance' ? 20 : 60],
+    };
+    this.setState({ plants: [newPlant, ...plants], screen: 'list' });
+  };
+
+  advanceStage = () => {
+    const { selectedId, plants } = this.state;
+    this.setState({
+      plants: plants.map((p) => {
+        if (p.id !== selectedId) return p;
+        const idx = STAGE_ORDER.indexOf(p.stage);
+        const nextStage = STAGE_ORDER[idx + 1];
+        if (!nextStage) return p;
+        return { ...p, stage: nextStage, dayInStage: 0 };
+      }),
+    });
+  };
+
+  deleteSelected = () => {
+    const { selectedId, plants } = this.state;
+    this.setState({ plants: plants.filter((p) => p.id !== selectedId), screen: 'list', selectedId: null });
+  };
+
+  buildChart(history, color) {
+    const w = 300, h = 140, padTop = 8, padBottom = 18;
+    const maxH = Math.max(...history, 1);
+    const n = history.length;
+    const points = history.map((val, i) => {
+      const x = n === 1 ? w / 2 : (i / (n - 1)) * (w - 16) + 8;
+      const y = padTop + (1 - val / maxH) * (h - padTop - padBottom);
+      return { x, y };
+    });
+    const linePoints = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const areaPath =
+      `M${points[0].x.toFixed(1)},${h - padBottom} ` +
+      points.map((p) => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') +
+      ` L${points[points.length - 1].x.toFixed(1)},${h - padBottom} Z`;
+    const gridLines = [0.25, 0.5, 0.75].map((f) => ({ y: padTop + f * (h - padTop - padBottom) }));
+    const last = points[points.length - 1];
+    return {
+      linePoints, areaPath, gridLines,
+      lastX: last.x.toFixed(1), lastY: last.y.toFixed(1),
+      areaFill: color.replace('0.78', '0.3').replace(')', ' / 0.18)'),
+    };
+  }
+
+  renderVals() {
+    const { screen, filter, selectedId, plants, form } = this.state;
+
+    const stageChip = (key, label) => ({
+      key,
+      label,
+      onClick: () => this.setFilter(key),
+      style: {
+        padding: '9px 16px',
+        borderRadius: 20,
+        border: filter === key ? '1px solid transparent' : '1px solid oklch(0.3 0.018 155)',
+        background: filter === key ? 'oklch(0.78 0.16 145)' : 'oklch(0.2 0.015 155)',
+        color: filter === key ? 'oklch(0.15 0.01 155)' : 'oklch(0.85 0.006 155)',
+        fontFamily: "'Space Grotesk', sans-serif",
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      },
+    });
+
+    const filterChips = [
+      stageChip('all', 'Toutes'),
+      stageChip('semis', 'Semis'),
+      stageChip('croissance', 'Croissance'),
+      stageChip('floraison', 'Floraison'),
+    ];
+
+    const visiblePlants = filter === 'all' ? plants : plants.filter((p) => p.stage === filter);
+
+    const plantCards = visiblePlants.map((p) => {
+      const meta = STAGE_META[p.stage];
+      const pct = Math.min(100, Math.round((p.dayInStage / meta.duration) * 100));
+      return {
+        key: p.id,
+        name: p.name,
+        variety: p.variety,
+        initial: p.name.trim().charAt(0).toUpperCase(),
+        stageLabel: meta.label,
+        dayInStage: p.dayInStage,
+        stageDuration: meta.duration,
+        heightCm: p.heightCm,
+        totalDay: p.totalDay,
+        onClick: () => this.openDetail(p.id),
+        avatarStyle: {
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: meta.color.replace('0.78', '0.28').replace(')', ' / 0.35)'),
+          color: meta.color,
+          fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16,
+        },
+        badgeStyle: {
+          padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+          fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0,
+          color: meta.color,
+          background: meta.color.replace('0.78', '0.28').replace(')', ' / 0.2)'),
+        },
+        progressBarStyle: { width: `${pct}%`, height: '100%', background: meta.color, borderRadius: 3 },
+      };
+    });
+
+    let selected = null;
+    if (selectedId != null) {
+      const p = plants.find((pp) => pp.id === selectedId);
+      if (p) {
+        const meta = STAGE_META[p.stage];
+        const idx = STAGE_ORDER.indexOf(p.stage);
+        const steps = STAGE_ORDER.map((key, i) => {
+          const m = STAGE_META[key];
+          const state = i < idx ? 'done' : i === idx ? 'active' : 'future';
+          return {
+            key,
+            label: m.label,
+            showLine: i < STAGE_ORDER.length - 1,
+            dotStyle: {
+              width: 14, height: 14, borderRadius: 7,
+              background: state === 'future' ? 'transparent' : m.color,
+              border: state === 'future' ? '2px solid oklch(0.32 0.018 155)' : 'none',
+            },
+            labelStyle: {
+              fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
+              color: state === 'active' ? m.color : 'oklch(0.55 0.012 155)',
+              fontWeight: state === 'active' ? 600 : 400,
+            },
+            lineStyle: {
+              flex: 1, height: 2, marginTop: -18,
+              background: i < idx ? m.color : 'oklch(0.3 0.016 155)',
+            },
+          };
+        });
+        const nextStage = STAGE_ORDER[idx + 1];
+        selected = {
+          id: p.id,
+          name: p.name,
+          variety: p.variety,
+          totalDay: p.totalDay,
+          dayInStage: p.dayInStage,
+          heightCm: p.heightCm,
+          stageColor: meta.color,
+          steps,
+          chart: this.buildChart(p.heightHistory, meta.color),
+          canAdvance: !!nextStage,
+          isDone: !nextStage,
+          advanceLabel: nextStage ? `Passer au stade : ${STAGE_META[nextStage].label}` : '',
+          stageValStyle: {
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 600, color: meta.color,
+          },
+        };
+      }
+    }
+
+    const formStageOptions = STAGE_ORDER.map((key) => {
+      const m = STAGE_META[key];
+      const active = form.stage === key;
+      return {
+        key,
+        label: m.label,
+        onClick: () => this.setFormStage(key),
+        style: {
+          flex: 1, padding: '11px 0', textAlign: 'center', borderRadius: 12,
+          border: active ? '1px solid transparent' : '1px solid oklch(0.3 0.018 155)',
+          background: active ? m.color : 'oklch(0.2 0.015 155)',
+          color: active ? 'oklch(0.15 0.01 155)' : 'oklch(0.8 0.006 155)',
+          fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        },
+      };
+    });
+
+    const submitDisabled = !form.name.trim();
+
+    return {
+      isList: screen === 'list',
+      isDetail: screen === 'detail',
+      isAdd: screen === 'add',
+      filterChips,
+      plantCards,
+      noPlantsInFilter: plantCards.length === 0,
+      selected,
+      form,
+      formStageOptions,
+      submitDisabled,
+      submitStyle: {
+        width: '100%', padding: 16, borderRadius: 14, border: 'none',
+        background: submitDisabled ? 'oklch(0.3 0.02 155)' : 'oklch(0.78 0.16 145)',
+        color: submitDisabled ? 'oklch(0.55 0.012 155)' : 'oklch(0.15 0.01 155)',
+        fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 600,
+        cursor: submitDisabled ? 'default' : 'pointer', marginTop: 4,
+      },
+      goAdd: this.goAdd, goList: this.goList, deleteSelected: this.deleteSelected,
+      advanceStage: this.advanceStage, submitAdd: this.submitAdd,
+      setFormName: this.setFormName, setFormVariety: this.setFormVariety,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

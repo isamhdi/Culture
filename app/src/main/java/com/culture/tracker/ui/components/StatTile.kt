@@ -26,12 +26,17 @@ fun StatTile(
     containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer,
     containerBrush: Brush? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     Card(
         modifier = modifier,
+        onClick = onClick ?: {},
+        enabled = onClick != null,
         colors = CardDefaults.cardColors(
             containerColor = if (containerBrush != null) Color.Transparent else containerColor,
             contentColor = contentColor,
+            disabledContainerColor = if (containerBrush != null) Color.Transparent else containerColor,
+            disabledContentColor = contentColor,
         ),
         shape = MaterialTheme.shapes.large,
     ) {
