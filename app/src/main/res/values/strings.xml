@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Culture</string>
+
+    <string name="nav_home">Accueil</string>
+    <string name="nav_garden">Jardin</string>
+    <string name="nav_calendar">Calendrier</string>
+    <string name="nav_journal">Journal</string>
+    <string name="nav_settings">Réglages</string>
+
+    <string name="garden_tab_plants">Plantes</string>
+    <string name="garden_tab_environments">Environnements</string>
+
+    <string name="notification_channel_actions_name">Actions à faire</string>
+    <string name="notification_channel_actions_desc">Rappels d\'arrosage, d\'engrais et autres actions planifiées</string>
+</resources>

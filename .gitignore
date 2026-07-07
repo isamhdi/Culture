@@ -1,0 +1,24 @@
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+
+# Android Studio / Gradle
+/app/build/
+/app/release/
+/app/debug/
+
+# Claude Code local tooling
+.claude/
+
+# Keystores (never commit signing secrets)
+*.jks
+*.keystore
