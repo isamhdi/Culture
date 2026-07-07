@@ -13,6 +13,7 @@ import com.culture.tracker.data.local.entity.PlantPhoto
 import com.culture.tracker.data.repository.CalendarRepository
 import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
+import com.culture.tracker.domain.model.ActionType
 import com.culture.tracker.domain.model.GrowthPhase
 import java.io.File
 import java.time.LocalDate
@@ -95,6 +96,14 @@ class PlantDetailViewModel(
 
     fun addHeightMeasurement(heightCm: Double, date: LocalDate) {
         viewModelScope.launch { gardenRepository.addHeightMeasurement(plantId, date, heightCm) }
+    }
+
+    fun addAction(actionType: ActionType, date: LocalDate, fertilizerId: Long?, notes: String?) {
+        viewModelScope.launch {
+            calendarRepository.addAction(
+                CalendarAction(plantId = plantId, actionType = actionType, date = date, fertilizerId = fertilizerId, notes = notes),
+            )
+        }
     }
 
     fun createGenetics(name: String, breeder: String?, onCreated: (Long) -> Unit) {

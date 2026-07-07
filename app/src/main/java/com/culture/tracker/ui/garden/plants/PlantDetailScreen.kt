@@ -69,6 +69,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.culture.tracker.data.local.entity.PhaseHistory
+import com.culture.tracker.domain.model.ActionType
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.ui.components.GrowthChart
 import com.culture.tracker.ui.components.PhaseChip
@@ -98,6 +99,7 @@ fun PlantDetailScreen(
     var showEditSheet by remember { mutableStateOf(false) }
     var showAddHeightDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showAddActionSheet by remember { mutableStateOf(false) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingPhotoFile?.let { viewModel.savePhoto(it) }
@@ -357,7 +359,28 @@ fun PlantDetailScreen(
             }
 
             item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
-            item { Text("Actions", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp)) }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Actions", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { showAddActionSheet = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = "Ajouter une action")
+                    }
+                }
+            }
+            if (state.actions.isEmpty()) {
+                item {
+                    Text(
+                        "Aucune action enregistrée.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
             items(state.actions, key = { it.id }) { action ->
                 val fertilizerName = action.fertilizerId?.let { id -> state.fertilizers.firstOrNull { it.id == id }?.name }
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -409,6 +432,17 @@ fun PlantDetailScreen(
                 },
             )
         }
+    }
+
+    if (showAddActionSheet) {
+        AddActionForPlantSheet(
+            fertilizers = state.fertilizers,
+            onDismiss = { showAddActionSheet = false },
+            onSave = { actionType, date, fertilizerId, notes ->
+                viewModel.addAction(actionType, date, fertilizerId, notes)
+                showAddActionSheet = false
+            },
+        )
     }
 
     if (showAddHeightDialog) {
@@ -587,6 +621,89 @@ private fun EditPlantSheet(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
                         startDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Annuler") } },
+        ) { DatePicker(state = datePickerState) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddActionForPlantSheet(
+    fertilizers: List<com.culture.tracker.data.local.entity.Fertilizer>,
+    onDismiss: () -> Unit,
+    onSave: (ActionType, LocalDate, Long?, String?) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var selectedType by remember { mutableStateOf(ActionType.ARROSAGE) }
+    var selectedFertilizerId by remember { mutableStateOf<Long?>(null) }
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var notes by remember { mutableStateOf("") }
+    var fertilizerMenuExpanded by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SheetHeader("Ajouter une action", onClose = onDismiss)
+
+            Text("Type d'action", style = MaterialTheme.typography.labelMedium)
+            com.culture.tracker.ui.components.ActionTypeSelector(
+                selected = selectedType,
+                onSelect = { selectedType = it },
+            )
+
+            if (selectedType == ActionType.ENGRAIS) {
+                ExposedDropdownMenuBox(expanded = fertilizerMenuExpanded, onExpandedChange = { fertilizerMenuExpanded = it }) {
+                    OutlinedTextField(
+                        value = fertilizers.firstOrNull { it.id == selectedFertilizerId }?.name ?: "Choisir un engrais",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Engrais") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fertilizerMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                    )
+                    DropdownMenu(expanded = fertilizerMenuExpanded, onDismissRequest = { fertilizerMenuExpanded = false }) {
+                        fertilizers.forEach { fert ->
+                            DropdownMenuItem(text = { Text(fert.name) }, onClick = { selectedFertilizerId = fert.id; fertilizerMenuExpanded = false })
+                        }
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = date.toString(),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Date") },
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = { TextButton(onClick = { showDatePicker = true }) { Text("Choisir") } },
+            )
+
+            OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())
+
+            TextButton(
+                onClick = { onSave(selectedType, date, selectedFertilizerId, notes.ifBlank { null }) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Enregistrer") }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                     }
                     showDatePicker = false
                 }) { Text("OK") }

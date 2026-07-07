@@ -57,40 +57,42 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onNavigateToCalendar,
-                    shape = MaterialTheme.shapes.extraLarge,
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .background(Brush.linearGradient(listOf(Color(0xFF1C5CAB), Color(0xFF1BAF7A))))
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+            if (state.todayScheduledCount > 0) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onNavigateToCalendar,
+                        shape = MaterialTheme.shapes.extraLarge,
                     ) {
-                        CircularProgressRing(
-                            progress = state.todayCompletionRatio,
-                            size = 76.dp,
-                            strokeWidth = 8.dp,
-                            trackColor = Color.White.copy(alpha = 0.25f),
-                            gradientColors = listOf(Color.White, Color.White.copy(alpha = 0.6f)),
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .background(Brush.linearGradient(listOf(Color(0xFF1C5CAB), Color(0xFF1BAF7A))))
+                                .padding(20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "${(state.todayCompletionRatio * 100).toInt()}%",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
-                        Column {
-                            Text("Aujourd'hui", color = Color.White, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "${state.todayDoneCount}/${state.todayScheduledCount} tâches complétées",
-                                color = Color.White.copy(alpha = 0.9f),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            CircularProgressRing(
+                                progress = state.todayCompletionRatio,
+                                size = 76.dp,
+                                strokeWidth = 8.dp,
+                                trackColor = Color.White.copy(alpha = 0.25f),
+                                gradientColors = listOf(Color.White, Color.White.copy(alpha = 0.6f)),
+                            ) {
+                                Text(
+                                    "${(state.todayCompletionRatio * 100).toInt()}%",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                            Column {
+                                Text("Aujourd'hui", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "${state.todayDoneCount}/${state.todayScheduledCount} tâches complétées",
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                         }
                     }
                 }
