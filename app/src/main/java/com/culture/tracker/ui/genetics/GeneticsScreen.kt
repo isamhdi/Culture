@@ -133,7 +133,7 @@ fun GeneticsScreen(onBack: () -> Unit, viewModel: GeneticsViewModel = koinViewMo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GeneticsEditSheet(
+fun GeneticsEditSheet(
     genetics: Genetics?,
     onDismiss: () -> Unit,
     onSave: (String, String?, Map<GrowthPhase, Int?>) -> Unit,

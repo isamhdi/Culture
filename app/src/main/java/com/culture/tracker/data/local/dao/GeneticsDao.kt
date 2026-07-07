@@ -14,6 +14,9 @@ interface GeneticsDao {
     @Query("SELECT * FROM genetics ORDER BY name ASC")
     fun observeAll(): Flow<List<Genetics>>
 
+    @Query("SELECT COUNT(*) FROM genetics")
+    suspend fun count(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(genetics: Genetics): Long
 

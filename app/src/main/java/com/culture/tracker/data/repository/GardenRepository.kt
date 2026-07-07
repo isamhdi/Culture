@@ -38,6 +38,13 @@ class GardenRepository(
     suspend fun updateGenetics(genetics: Genetics) = geneticsDao.update(genetics)
     suspend fun deleteGenetics(genetics: Genetics) = geneticsDao.delete(genetics)
 
+    /** Insère les variétés de référence si la table est vide (premier lancement). */
+    suspend fun seedDefaultGeneticsIfEmpty(seeds: List<Genetics>) {
+        if (geneticsDao.count() == 0) {
+            seeds.forEach { geneticsDao.upsert(it) }
+        }
+    }
+
     suspend fun createEnvironment(environment: Environment): Long = environmentDao.upsert(environment)
     suspend fun updateEnvironment(environment: Environment) = environmentDao.update(environment)
     suspend fun deleteEnvironment(environment: Environment) = environmentDao.delete(environment)

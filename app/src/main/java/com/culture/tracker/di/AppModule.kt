@@ -17,6 +17,7 @@ import com.culture.tracker.ui.genetics.GeneticsViewModel
 import com.culture.tracker.ui.home.HomeViewModel
 import com.culture.tracker.ui.journal.JournalViewModel
 import com.culture.tracker.ui.settings.SettingsViewModel
+import com.culture.tracker.ui.tools.StageDatesViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -55,4 +56,5 @@ val appModule = module {
     viewModel { JournalViewModel(get(), get()) }
     viewModel { SettingsViewModel(get()) }
     viewModel { GeneticsViewModel(get()) }
+    viewModel { StageDatesViewModel(get()) }
 }

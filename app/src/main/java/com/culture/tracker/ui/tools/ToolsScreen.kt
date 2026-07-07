@@ -42,7 +42,7 @@ private enum class ToolKind { STAGE_DATES, LIGHTING, SOIL_MIX, UNIT_CONVERTER }
 private data class ToolEntry(val kind: ToolKind, val title: String, val description: String, val icon: ImageVector)
 
 private val tools = listOf(
-    ToolEntry(ToolKind.STAGE_DATES, "Dates de stade", "Estimer les dates des phases à partir d'une date de départ", Icons.Filled.CalendarMonth),
+    ToolEntry(ToolKind.STAGE_DATES, "Dates de stade", "Durée des phases par variété, personnalisable", Icons.Filled.CalendarMonth),
     ToolEntry(ToolKind.LIGHTING, "Éclairage", "Densité de puissance (W/m²) selon la surface", Icons.Filled.LightMode),
     ToolEntry(ToolKind.SOIL_MIX, "Mélange de terreau", "Répartir un volume total selon des proportions", Icons.Filled.Grain),
     ToolEntry(ToolKind.UNIT_CONVERTER, "Conversion d'unités", "Volume, température et longueur", Icons.Filled.SwapHoriz),
