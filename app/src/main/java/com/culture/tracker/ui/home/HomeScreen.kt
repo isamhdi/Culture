@@ -34,7 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.culture.tracker.R
 import com.culture.tracker.ui.components.CircularProgressRing
-import com.culture.tracker.ui.components.PlantCard
+import com.culture.tracker.ui.components.PlantCardCompact
 import com.culture.tracker.ui.components.StatTile
 import com.culture.tracker.ui.components.WeekCalendar
 import org.koin.androidx.compose.koinViewModel
@@ -124,22 +124,28 @@ fun HomeScreen(
                 item {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Vos plantes", style = MaterialTheme.typography.titleMedium)
-                        if (state.plants.size > 3) {
+                        if (state.plants.size > 4) {
                             androidx.compose.material3.TextButton(onClick = onNavigateToGarden) { Text("Tout voir") }
                         }
                     }
                 }
-                items(state.plants.take(3), key = { it.id }) { plant ->
-                    val genetics = state.genetics.firstOrNull { it.id == plant.geneticsId }
-                    PlantCard(
-                        plant = plant,
-                        thumbnailPath = state.thumbnails[plant.id],
-                        genetics = genetics,
-                        openPhase = state.openPhaseByPlant[plant.id],
-                        heightCm = state.latestHeightByPlant[plant.id],
-                        onClick = { onPlantClick(plant.id) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                items(state.plants.take(4).chunked(2), key = { pair -> pair.joinToString { it.id.toString() } }) { rowPlants ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        rowPlants.forEach { plant ->
+                            val genetics = state.genetics.firstOrNull { it.id == plant.geneticsId }
+                            PlantCardCompact(
+                                plant = plant,
+                                thumbnailPath = state.thumbnails[plant.id],
+                                genetics = genetics,
+                                openPhase = state.openPhaseByPlant[plant.id],
+                                onClick = { onPlantClick(plant.id) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (rowPlants.size == 1) {
+                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
 

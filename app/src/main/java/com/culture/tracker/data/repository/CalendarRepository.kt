@@ -37,6 +37,8 @@ class CalendarRepository(
         calendarActionDao.getLastActionOfType(plantId, actionType)?.date
 
     suspend fun createFertilizer(fertilizer: Fertilizer): Long = fertilizerDao.upsert(fertilizer)
+    suspend fun updateFertilizer(fertilizer: Fertilizer) = fertilizerDao.update(fertilizer)
+    suspend fun deleteFertilizer(fertilizer: Fertilizer) = fertilizerDao.delete(fertilizer)
 
     suspend fun recordReading(reading: EnvironmentReading): Long = environmentReadingDao.insert(reading)
 }

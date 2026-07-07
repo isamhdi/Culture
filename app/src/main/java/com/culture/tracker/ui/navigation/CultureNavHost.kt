@@ -31,6 +31,7 @@ import com.culture.tracker.ui.calendar.CalendarScreen
 import com.culture.tracker.ui.garden.GardenScreen
 import com.culture.tracker.ui.garden.environments.EnvironmentDetailScreen
 import com.culture.tracker.ui.garden.plants.PlantDetailScreen
+import com.culture.tracker.ui.fertilizers.FertilizersScreen
 import com.culture.tracker.ui.genetics.GeneticsScreen
 import com.culture.tracker.ui.home.HomeScreen
 import com.culture.tracker.ui.journal.JournalScreen
@@ -83,10 +84,12 @@ fun CultureNavHost() {
                 SettingsScreen(
                     onOpenTools = { navController.navigate("tools") },
                     onOpenGenetics = { navController.navigate("genetics") },
+                    onOpenFertilizers = { navController.navigate("fertilizers") },
                 )
             }
             composable("tools") { ToolsScreen(onBack = { navController.popBackStack() }) }
             composable("genetics") { GeneticsScreen(onBack = { navController.popBackStack() }) }
+            composable("fertilizers") { FertilizersScreen(onBack = { navController.popBackStack() }) }
 
             composable(
                 route = Routes.PLANT_DETAIL,

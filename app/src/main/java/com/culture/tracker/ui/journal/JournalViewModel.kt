@@ -7,6 +7,7 @@ import com.culture.tracker.data.local.entity.Fertilizer
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.repository.CalendarRepository
 import com.culture.tracker.data.repository.GardenRepository
+import com.culture.tracker.domain.model.ActionType
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,11 +34,15 @@ class JournalViewModel(
         JournalUiState(actions.sortedByDescending { it.date }, plants, fertilizers)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalUiState())
 
-    fun createFertilizer(name: String, npk: String?, notes: String?) {
-        viewModelScope.launch { calendarRepository.createFertilizer(Fertilizer(name = name, npk = npk, notes = notes)) }
-    }
-
     fun deleteAction(action: CalendarAction) {
         viewModelScope.launch { calendarRepository.deleteAction(action) }
+    }
+
+    fun addAction(plantId: Long, actionType: ActionType, date: LocalDate, fertilizerId: Long?, notes: String?) {
+        viewModelScope.launch {
+            calendarRepository.addAction(
+                CalendarAction(plantId = plantId, actionType = actionType, date = date, fertilizerId = fertilizerId, notes = notes),
+            )
+        }
     }
 }
