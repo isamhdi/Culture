@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -71,6 +72,7 @@ import coil3.compose.AsyncImage
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.domain.model.ActionType
 import com.culture.tracker.domain.model.GrowthPhase
+import com.culture.tracker.domain.model.PlantMeasurementType
 import com.culture.tracker.ui.components.GrowthChart
 import com.culture.tracker.ui.components.PhaseChip
 import com.culture.tracker.ui.components.PhaseTimeline
@@ -100,6 +102,7 @@ fun PlantDetailScreen(
     var showAddHeightDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showAddActionSheet by remember { mutableStateOf(false) }
+    var showAddLogSheet by remember { mutableStateOf(false) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingPhotoFile?.let { viewModel.savePhoto(it) }
@@ -297,7 +300,7 @@ fun PlantDetailScreen(
             }
 
             item { Text("Historique des phases", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp)) }
-            items(state.phaseHistory, key = { it.id }) { phase ->
+            items(state.phaseHistory, key = { "phase_${it.id}" }) { phase ->
                 val isOpenAndRevertible = phase.endDate == null && state.phaseHistory.size > 1
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = { value ->
@@ -381,7 +384,7 @@ fun PlantDetailScreen(
                     )
                 }
             }
-            items(state.actions, key = { it.id }) { action ->
+            items(state.actions, key = { "action_${it.id}" }) { action ->
                 val fertilizerName = action.fertilizerId?.let { id -> state.fertilizers.firstOrNull { it.id == id }?.name }
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -392,6 +395,53 @@ fun PlantDetailScreen(
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                             Text(action.date.toString(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+
+            item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Relevés", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { showAddLogSheet = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = "Ajouter un relevé")
+                    }
+                }
+            }
+            if (state.logs.isEmpty()) {
+                item {
+                    Text(
+                        "Aucun relevé enregistré.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
+            items(state.logs, key = { "log_${it.id}" }) { log ->
+                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Assignment, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            val measureText = log.measurementType?.let { type ->
+                                "${type.label} : ${log.measurementValue?.let { formatMeasurementValue(it) }} ${type.unit}".trim()
+                            }
+                            Text(
+                                measureText ?: log.note.orEmpty().ifBlank { "Note" },
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            if (measureText != null && !log.note.isNullOrBlank()) {
+                                Text(log.note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(log.date.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { viewModel.deletePlantLog(log) }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Supprimer le relevé")
                         }
                     }
                 }
@@ -441,6 +491,16 @@ fun PlantDetailScreen(
             onSave = { actionType, date, fertilizerId, notes ->
                 viewModel.addAction(actionType, date, fertilizerId, notes)
                 showAddActionSheet = false
+            },
+        )
+    }
+
+    if (showAddLogSheet) {
+        AddPlantLogSheet(
+            onDismiss = { showAddLogSheet = false },
+            onSave = { date, note, type, value ->
+                viewModel.addPlantLog(date, note, type, value)
+                showAddLogSheet = false
             },
         )
     }
@@ -712,6 +772,94 @@ private fun AddActionForPlantSheet(
         ) { DatePicker(state = datePickerState) }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddPlantLogSheet(
+    onDismiss: () -> Unit,
+    onSave: (LocalDate, String?, PlantMeasurementType?, Double?) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var note by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf<PlantMeasurementType?>(null) }
+    var valueText by remember { mutableStateOf("") }
+    var typeMenuExpanded by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SheetHeader("Ajouter un relevé", onClose = onDismiss)
+
+            OutlinedTextField(
+                value = date.toString(),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Date") },
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = { TextButton(onClick = { showDatePicker = true }) { Text("Choisir") } },
+            )
+
+            OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
+
+            ExposedDropdownMenuBox(expanded = typeMenuExpanded, onExpandedChange = { typeMenuExpanded = it }) {
+                OutlinedTextField(
+                    value = selectedType?.label ?: "Ajouter une mesure",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Mesure") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                )
+                DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("Aucune") }, onClick = { selectedType = null; typeMenuExpanded = false })
+                    PlantMeasurementType.entries.forEach { type ->
+                        DropdownMenuItem(text = { Text(type.label) }, onClick = { selectedType = type; typeMenuExpanded = false })
+                    }
+                }
+            }
+
+            if (selectedType != null) {
+                OutlinedTextField(
+                    value = valueText,
+                    onValueChange = { valueText = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Valeur${selectedType?.unit?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""}") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            TextButton(
+                onClick = { onSave(date, note.ifBlank { null }, selectedType, valueText.toDoubleOrNull()) },
+                enabled = note.isNotBlank() || (selectedType != null && valueText.toDoubleOrNull() != null),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Enregistrer") }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Annuler") } },
+        ) { DatePicker(state = datePickerState) }
+    }
+}
+
+private fun formatMeasurementValue(value: Double): String =
+    if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
 
 @Composable
 private fun DetailStatTile(label: String, value: String, modifier: Modifier = Modifier) {

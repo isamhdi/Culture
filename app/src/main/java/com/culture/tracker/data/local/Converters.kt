@@ -2,7 +2,9 @@ package com.culture.tracker.data.local
 
 import androidx.room.TypeConverter
 import com.culture.tracker.domain.model.ActionType
+import com.culture.tracker.domain.model.EnvironmentMeasurementType
 import com.culture.tracker.domain.model.GrowthPhase
+import com.culture.tracker.domain.model.PlantMeasurementType
 import com.culture.tracker.domain.model.PropagationType
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -37,4 +39,16 @@ class Converters {
 
     @TypeConverter
     fun toActionType(value: String?): ActionType? = value?.let(ActionType::valueOf)
+
+    @TypeConverter
+    fun fromPlantMeasurementType(value: PlantMeasurementType?): String? = value?.name
+
+    @TypeConverter
+    fun toPlantMeasurementType(value: String?): PlantMeasurementType? = value?.let(PlantMeasurementType::valueOf)
+
+    @TypeConverter
+    fun fromEnvironmentMeasurementType(value: EnvironmentMeasurementType?): String? = value?.name
+
+    @TypeConverter
+    fun toEnvironmentMeasurementType(value: String?): EnvironmentMeasurementType? = value?.let(EnvironmentMeasurementType::valueOf)
 }

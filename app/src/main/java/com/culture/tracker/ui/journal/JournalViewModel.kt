@@ -43,6 +43,9 @@ class JournalViewModel(
             calendarRepository.addAction(
                 CalendarAction(plantId = plantId, actionType = actionType, date = date, fertilizerId = fertilizerId, notes = notes),
             )
+            if (actionType == ActionType.DECES) {
+                uiState.value.plants.firstOrNull { it.id == plantId }?.let { gardenRepository.archivePlant(it) }
+            }
         }
     }
 }

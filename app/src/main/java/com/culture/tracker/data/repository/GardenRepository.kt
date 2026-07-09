@@ -1,15 +1,19 @@
 package com.culture.tracker.data.repository
 
 import com.culture.tracker.data.local.dao.EnvironmentDao
+import com.culture.tracker.data.local.dao.EnvironmentLogDao
 import com.culture.tracker.data.local.dao.GeneticsDao
 import com.culture.tracker.data.local.dao.HeightMeasurementDao
 import com.culture.tracker.data.local.dao.PhaseHistoryDao
 import com.culture.tracker.data.local.dao.PlantDao
+import com.culture.tracker.data.local.dao.PlantLogDao
 import com.culture.tracker.data.local.entity.Environment
+import com.culture.tracker.data.local.entity.EnvironmentLog
 import com.culture.tracker.data.local.entity.Genetics
 import com.culture.tracker.data.local.entity.HeightMeasurement
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
+import com.culture.tracker.data.local.entity.PlantLog
 import com.culture.tracker.domain.model.GrowthPhase
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -20,8 +24,11 @@ class GardenRepository(
     private val environmentDao: EnvironmentDao,
     private val phaseHistoryDao: PhaseHistoryDao,
     private val heightMeasurementDao: HeightMeasurementDao,
+    private val plantLogDao: PlantLogDao,
+    private val environmentLogDao: EnvironmentLogDao,
 ) {
     fun observePlants(): Flow<List<Plant>> = plantDao.observeActive()
+    fun observeArchivedPlants(): Flow<List<Plant>> = plantDao.observeArchived()
     fun observePlant(id: Long): Flow<Plant?> = plantDao.observeById(id)
     fun observeGenetics(): Flow<List<Genetics>> = geneticsDao.observeAll()
     fun observeEnvironments(): Flow<List<Environment>> = environmentDao.observeAll()
@@ -62,6 +69,7 @@ class GardenRepository(
 
     suspend fun updatePlant(plant: Plant) = plantDao.update(plant)
     suspend fun archivePlant(plant: Plant) = plantDao.update(plant.copy(archived = true))
+    suspend fun unarchivePlant(plant: Plant) = plantDao.update(plant.copy(archived = false))
 
     suspend fun addHeightMeasurement(plantId: Long, date: LocalDate, heightCm: Double) {
         heightMeasurementDao.upsert(HeightMeasurement(plantId = plantId, date = date, heightCm = heightCm))
@@ -105,4 +113,12 @@ class GardenRepository(
         phaseHistoryDao.update(previous.copy(endDate = null))
         plantDao.getById(currentOpenPhase.plantId)?.let { plantDao.update(it.copy(currentPhase = previous.phase)) }
     }
+
+    fun observePlantLogs(plantId: Long): Flow<List<PlantLog>> = plantLogDao.observeForPlant(plantId)
+    suspend fun addPlantLog(log: PlantLog): Long = plantLogDao.upsert(log)
+    suspend fun deletePlantLog(log: PlantLog) = plantLogDao.delete(log)
+
+    fun observeEnvironmentLogs(environmentId: Long): Flow<List<EnvironmentLog>> = environmentLogDao.observeForEnvironment(environmentId)
+    suspend fun addEnvironmentLog(log: EnvironmentLog): Long = environmentLogDao.upsert(log)
+    suspend fun deleteEnvironmentLog(log: EnvironmentLog) = environmentLogDao.delete(log)
 }

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,7 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
-private enum class ToolKind { STAGE_DATES, LIGHTING, SOIL_MIX, UNIT_CONVERTER }
+private enum class ToolKind { STAGE_DATES, LIGHTING, SOIL_MIX, UNIT_CONVERTER, PH_WATER }
 
 private data class ToolEntry(val kind: ToolKind, val title: String, val description: String, val icon: ImageVector)
 
@@ -46,6 +47,7 @@ private val tools = listOf(
     ToolEntry(ToolKind.LIGHTING, "Éclairage", "Densité de puissance (W/m²) selon la surface", Icons.Filled.LightMode),
     ToolEntry(ToolKind.SOIL_MIX, "Mélange de terreau", "Répartir un volume total selon des proportions", Icons.Filled.Grain),
     ToolEntry(ToolKind.UNIT_CONVERTER, "Conversion d'unités", "Volume, température et longueur", Icons.Filled.SwapHoriz),
+    ToolEntry(ToolKind.PH_WATER, "pH / Eau", "Dose de correcteur pH selon le volume d'eau", Icons.Filled.Science),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,6 +101,7 @@ fun ToolsScreen(onBack: () -> Unit) {
         ToolKind.LIGHTING -> LightingCalculatorSheet(onDismiss = { openTool = null })
         ToolKind.SOIL_MIX -> SoilMixCalculatorSheet(onDismiss = { openTool = null })
         ToolKind.UNIT_CONVERTER -> UnitConverterSheet(onDismiss = { openTool = null })
+        ToolKind.PH_WATER -> PhWaterCalculatorSheet(onDismiss = { openTool = null })
         null -> Unit
     }
 }

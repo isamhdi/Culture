@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Science
@@ -42,6 +43,7 @@ fun SettingsScreen(
     onOpenTools: () -> Unit = {},
     onOpenGenetics: () -> Unit = {},
     onOpenFertilizers: () -> Unit = {},
+    onOpenArchive: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val settings by viewModel.settings.collectAsState()
@@ -112,6 +114,29 @@ fun SettingsScreen(
                         Text("Engrais", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "Gérer les engrais disponibles",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = null)
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenArchive,
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Archive, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f)) {
+                        Text("Archives", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Plantes archivées ou déclarées mortes",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

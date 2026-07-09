@@ -27,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.culture.tracker.ui.archive.ArchiveScreen
 import com.culture.tracker.ui.calendar.CalendarScreen
 import com.culture.tracker.ui.garden.GardenScreen
 import com.culture.tracker.ui.garden.environments.EnvironmentDetailScreen
@@ -70,6 +71,7 @@ fun CultureNavHost() {
                     onPlantClick = { plantId -> navController.navigate(Routes.plantDetail(plantId)) },
                     onNavigateToCalendar = { navigateToTab(BottomTab.Calendar.route) },
                     onNavigateToGarden = { navigateToTab(BottomTab.Garden.route) },
+                    onNavigateToSettings = { navigateToTab(BottomTab.Settings.route) },
                 )
             }
             composable(BottomTab.Garden.route) {
@@ -85,11 +87,13 @@ fun CultureNavHost() {
                     onOpenTools = { navController.navigate("tools") },
                     onOpenGenetics = { navController.navigate("genetics") },
                     onOpenFertilizers = { navController.navigate("fertilizers") },
+                    onOpenArchive = { navController.navigate("archive") },
                 )
             }
             composable("tools") { ToolsScreen(onBack = { navController.popBackStack() }) }
             composable("genetics") { GeneticsScreen(onBack = { navController.popBackStack() }) }
             composable("fertilizers") { FertilizersScreen(onBack = { navController.popBackStack() }) }
+            composable("archive") { ArchiveScreen(onBack = { navController.popBackStack() }) }
 
             composable(
                 route = Routes.PLANT_DETAIL,

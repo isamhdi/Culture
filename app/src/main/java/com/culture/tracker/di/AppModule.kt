@@ -8,6 +8,7 @@ import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
 import com.culture.tracker.data.repository.SettingsRepository
 import com.culture.tracker.notifications.NotificationHelper
+import com.culture.tracker.ui.archive.ArchiveViewModel
 import com.culture.tracker.ui.calendar.CalendarViewModel
 import com.culture.tracker.ui.garden.environments.EnvironmentDetailViewModel
 import com.culture.tracker.ui.garden.environments.EnvironmentsViewModel
@@ -39,10 +40,12 @@ val appModule = module {
     single { get<AppDatabase>().environmentReadingDao() }
     single { get<AppDatabase>().plantPhotoDao() }
     single { get<AppDatabase>().heightMeasurementDao() }
+    single { get<AppDatabase>().plantLogDao() }
+    single { get<AppDatabase>().environmentLogDao() }
 
     single { get<android.content.Context>().dataStore }
 
-    single { GardenRepository(get(), get(), get(), get(), get()) }
+    single { GardenRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { CalendarRepository(get(), get(), get()) }
     single { PhotoRepository(get(), get()) }
     single { SettingsRepository(get()) }
@@ -59,4 +62,5 @@ val appModule = module {
     viewModel { GeneticsViewModel(get()) }
     viewModel { StageDatesViewModel(get()) }
     viewModel { FertilizersViewModel(get()) }
+    viewModel { ArchiveViewModel(get()) }
 }

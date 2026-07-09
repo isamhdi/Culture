@@ -14,6 +14,9 @@ interface PlantDao {
     @Query("SELECT * FROM plants WHERE archived = 0 ORDER BY name ASC")
     fun observeActive(): Flow<List<Plant>>
 
+    @Query("SELECT * FROM plants WHERE archived = 1 ORDER BY name ASC")
+    fun observeArchived(): Flow<List<Plant>>
+
     @Query("SELECT * FROM plants WHERE id = :id")
     fun observeById(id: Long): Flow<Plant?>
 

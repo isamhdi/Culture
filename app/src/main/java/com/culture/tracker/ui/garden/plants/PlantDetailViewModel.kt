@@ -9,12 +9,14 @@ import com.culture.tracker.data.local.entity.Genetics
 import com.culture.tracker.data.local.entity.HeightMeasurement
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
+import com.culture.tracker.data.local.entity.PlantLog
 import com.culture.tracker.data.local.entity.PlantPhoto
 import com.culture.tracker.data.repository.CalendarRepository
 import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
 import com.culture.tracker.domain.model.ActionType
 import com.culture.tracker.domain.model.GrowthPhase
+import com.culture.tracker.domain.model.PlantMeasurementType
 import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +34,7 @@ data class PlantDetailUiState(
     val environments: List<Environment> = emptyList(),
     val fertilizers: List<Fertilizer> = emptyList(),
     val heightHistory: List<HeightMeasurement> = emptyList(),
+    val logs: List<PlantLog> = emptyList(),
 )
 
 class PlantDetailViewModel(
@@ -50,6 +53,7 @@ class PlantDetailViewModel(
         gardenRepository.observeEnvironments(),
         calendarRepository.observeFertilizers(),
         gardenRepository.observeHeightHistory(plantId),
+        gardenRepository.observePlantLogs(plantId),
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         PlantDetailUiState(
@@ -61,6 +65,7 @@ class PlantDetailViewModel(
             environments = values[5] as List<Environment>,
             fertilizers = values[6] as List<Fertilizer>,
             heightHistory = values[7] as List<HeightMeasurement>,
+            logs = values[8] as List<PlantLog>,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PlantDetailUiState())
 
@@ -98,11 +103,26 @@ class PlantDetailViewModel(
         viewModelScope.launch { gardenRepository.addHeightMeasurement(plantId, date, heightCm) }
     }
 
+    fun addPlantLog(date: LocalDate, note: String?, measurementType: PlantMeasurementType?, measurementValue: Double?) {
+        viewModelScope.launch {
+            gardenRepository.addPlantLog(
+                PlantLog(plantId = plantId, date = date, note = note, measurementType = measurementType, measurementValue = measurementValue),
+            )
+        }
+    }
+
+    fun deletePlantLog(log: PlantLog) {
+        viewModelScope.launch { gardenRepository.deletePlantLog(log) }
+    }
+
     fun addAction(actionType: ActionType, date: LocalDate, fertilizerId: Long?, notes: String?) {
         viewModelScope.launch {
             calendarRepository.addAction(
                 CalendarAction(plantId = plantId, actionType = actionType, date = date, fertilizerId = fertilizerId, notes = notes),
             )
+            if (actionType == ActionType.DECES) {
+                uiState.value.plant?.let { gardenRepository.archivePlant(it) }
+            }
         }
     }
 

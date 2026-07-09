@@ -8,9 +8,10 @@ import androidx.compose.ui.graphics.Color
 val BrandGreen = Color(0xFF4ADE80)
 val BrandGreenDark = Color(0xFF22C55E)
 
-val GreenPrimaryLight = Color(0xFF1E8A4C)
+// Vert forêt profond façon "Grow with Jane" (boutons pilule, icônes toolbox) sur fond crème.
+val GreenPrimaryLight = Color(0xFF1F4D2E)
 val GreenOnPrimaryLight = Color(0xFFFFFFFF)
-val GreenPrimaryContainerLight = Color(0xFFC2F2D3)
+val GreenPrimaryContainerLight = Color(0xFFC8E6D0)
 val GreenOnPrimaryContainerLight = Color(0xFF00210E)
 
 val EarthSecondaryLight = Color(0xFF4B6355)
@@ -23,9 +24,9 @@ val SunOnTertiaryLight = Color(0xFFFFFFFF)
 val SunTertiaryContainerLight = Color(0xFFC0E8F5)
 val SunOnTertiaryContainerLight = Color(0xFF001F29)
 
-val BackgroundLight = Color(0xFFF7F8F7)
+val BackgroundLight = Color(0xFFF3F1E7)
 val OnBackgroundLight = Color(0xFF13140F)
-val SurfaceLight = Color(0xFFFFFFFF)
+val SurfaceLight = Color(0xFFFAF8EF)
 val OnSurfaceLight = Color(0xFF13140F)
 
 // Dark : fond quasi noir, cartes gris anthracite légèrement plus claires.
