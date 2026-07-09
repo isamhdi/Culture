@@ -3,6 +3,7 @@ package com.culture.tracker.data.local
 import androidx.room.TypeConverter
 import com.culture.tracker.domain.model.ActionType
 import com.culture.tracker.domain.model.EnvironmentMeasurementType
+import com.culture.tracker.domain.model.GrowMedium
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PlantMeasurementType
 import com.culture.tracker.domain.model.PropagationType
@@ -51,4 +52,10 @@ class Converters {
 
     @TypeConverter
     fun toEnvironmentMeasurementType(value: String?): EnvironmentMeasurementType? = value?.let(EnvironmentMeasurementType::valueOf)
+
+    @TypeConverter
+    fun fromGrowMedium(value: GrowMedium?): String? = value?.name
+
+    @TypeConverter
+    fun toGrowMedium(value: String?): GrowMedium? = value?.let(GrowMedium::valueOf)
 }

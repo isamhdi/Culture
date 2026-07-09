@@ -40,7 +40,7 @@ import com.culture.tracker.data.local.entity.PlantPhoto
         PlantLog::class,
         EnvironmentLog::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

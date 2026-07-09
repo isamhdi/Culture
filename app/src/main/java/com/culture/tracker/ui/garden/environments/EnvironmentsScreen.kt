@@ -133,7 +133,7 @@ fun EnvironmentsScreen(onEnvironmentClick: (Long) -> Unit = {}, viewModel: Envir
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CreateEnvironmentSheet(
+fun CreateEnvironmentSheet(
     onDismiss: () -> Unit,
     onCreate: (String, Double, String?, String?, String?, Int?, String?, String?) -> Unit,
 ) {
