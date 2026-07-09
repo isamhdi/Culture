@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -49,8 +50,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,8 +63,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.culture.tracker.domain.model.GrowMedium
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PropagationType
+import com.culture.tracker.ui.garden.environments.CreateEnvironmentSheet
+import com.culture.tracker.ui.theme.icon
 import com.culture.tracker.ui.theme.themedColor
 import java.io.File
 import java.time.Instant
@@ -74,14 +80,16 @@ import org.koin.androidx.compose.koinViewModel
 fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf<GrowthPhase?>(null) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var filters by remember { mutableStateOf(PlantFilters()) }
     var pendingPhotoFile by remember { mutableStateOf<File?>(null) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (!success) pendingPhotoFile = null
     }
 
-    val filteredPlants = state.plants.filter { selectedFilter == null || it.currentPhase == selectedFilter }
+    val filteredPlants = applyPlantFilters(state.plants, filters)
+    val groupedPlants = groupPlants(filteredPlants, filters.groupBy, state.environments)
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Plantes") }) },
@@ -92,33 +100,27 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                item {
-                    FilterChip(
-                        selected = selectedFilter == null,
-                        onClick = { selectedFilter = null },
-                        label = { Text("Toutes") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    )
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, androidx.compose.foundation.shape.CircleShape),
+                ) {
+                    Icon(Icons.Filled.Tune, contentDescription = "Filtres", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-                items(GrowthPhase.entries.toList()) { phase ->
-                    val color = phase.themedColor()
-                    FilterChip(
-                        selected = selectedFilter == phase,
-                        onClick = { selectedFilter = if (selectedFilter == phase) null else phase },
-                        label = { Text(phase.label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = color,
-                            selectedLabelColor = androidx.compose.ui.graphics.Color.Black,
-                        ),
-                    )
-                }
+                FilterChip(
+                    selected = filters.stages.isNotEmpty(),
+                    onClick = { showFilterSheet = true },
+                    label = { Text(if (filters.stages.isEmpty()) "Stade" else "Stade (${filters.stages.size})") },
+                )
+                FilterChip(
+                    selected = filters.environments.isNotEmpty(),
+                    onClick = { showFilterSheet = true },
+                    label = { Text(if (filters.environments.isEmpty()) "Environnement" else "Environnement (${filters.environments.size})") },
+                )
             }
 
             if (filteredPlants.isEmpty()) {
@@ -135,7 +137,13 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(filteredPlants, key = { it.id }) { plant ->
+                    groupedPlants.forEach { (groupLabel, plantsInGroup) ->
+                        if (groupLabel.isNotEmpty()) {
+                            item(key = "header_$groupLabel") {
+                                Text(groupLabel, style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
+                        items(plantsInGroup, key = { it.id }) { plant ->
                         val genetics = state.genetics.firstOrNull { it.id == plant.geneticsId }
                         PlantCard(
                             plant = plant,
@@ -146,6 +154,7 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
                             onClick = { onPlantClick(plant.id) },
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        }
                     }
                 }
             }
@@ -163,11 +172,27 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
             },
             onDismiss = { showCreateSheet = false; pendingPhotoFile = null },
             onCreateGenetics = { name, breeder, onCreated -> viewModel.createGenetics(name, breeder, onCreated) },
-            onCreate = { name, propagation, geneticsId, environmentId, phase, startDate, watering, fertilizing, count ->
-                viewModel.createPlant(name, propagation, geneticsId, environmentId, phase, startDate, watering, fertilizing, count, pendingPhotoFile)
+            onCreateEnvironment = { name, hours, size, material, lightType, power, spectrum, model, onCreated ->
+                viewModel.createEnvironment(name, hours, size, material, lightType, power, spectrum, model, onCreated)
+            },
+            onCreate = { name, propagation, geneticsId, environmentId, phase, watering, fertilizing, count, medium, mediumDescription, phaseDates ->
+                val earliestDate = phaseDates.values.minOrNull() ?: LocalDate.now()
+                viewModel.createPlant(
+                    name, propagation, geneticsId, environmentId, phase, earliestDate,
+                    watering, fertilizing, count, pendingPhotoFile, medium, mediumDescription, phaseDates,
+                )
                 pendingPhotoFile = null
                 showCreateSheet = false
             },
+        )
+    }
+
+    if (showFilterSheet) {
+        PlantFilterSheet(
+            filters = filters,
+            environments = state.environments,
+            onDismiss = { showFilterSheet = false },
+            onApply = { filters = it; showFilterSheet = false },
         )
     }
 }
@@ -180,7 +205,8 @@ private fun CreatePlantSheet(
     onTakePhoto: () -> Unit,
     onDismiss: () -> Unit,
     onCreateGenetics: (String, String?, (Long) -> Unit) -> Unit,
-    onCreate: (String, PropagationType, Long?, Long?, GrowthPhase, LocalDate, Int?, Int?, Int) -> Unit,
+    onCreateEnvironment: (String, Double, String?, String?, String?, Int?, String?, String?, (Long) -> Unit) -> Unit,
+    onCreate: (String, PropagationType, Long?, Long?, GrowthPhase, Int?, Int?, Int, GrowMedium?, String?, Map<GrowthPhase, LocalDate>) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var name by remember { mutableStateOf("") }
@@ -188,12 +214,27 @@ private fun CreatePlantSheet(
     var selectedGeneticsId by remember { mutableStateOf<Long?>(null) }
     var newGeneticsName by remember { mutableStateOf("") }
     var selectedEnvironmentId by remember { mutableStateOf<Long?>(null) }
+    var showCreateEnvironmentSheet by remember { mutableStateOf(false) }
     var startingPhase by remember { mutableStateOf(GrowthPhase.GERMINATION) }
-    var startDate by remember { mutableStateOf(LocalDate.now()) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var editingDateForPhase by remember { mutableStateOf<GrowthPhase?>(null) }
+    val phaseDates = remember { mutableStateMapOf(GrowthPhase.GERMINATION to LocalDate.now()) }
     var wateringInterval by remember { mutableStateOf("") }
     var fertilizingInterval by remember { mutableStateOf("") }
     var count by remember { mutableStateOf("1") }
+    var selectedMedium by remember { mutableStateOf<GrowMedium?>(null) }
+    var mediumDescription by remember { mutableStateOf("") }
+    var mediumExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(startingPhase) {
+        val included = GrowthPhase.entries.filter { it.ordinal <= startingPhase.ordinal }
+        val previousDates = phaseDates.toMap()
+        phaseDates.keys.retainAll(included.toSet())
+        included.forEach { phase ->
+            if (phase !in phaseDates) {
+                phaseDates[phase] = previousDates.values.maxOrNull() ?: LocalDate.now()
+            }
+        }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -238,20 +279,50 @@ private fun CreatePlantSheet(
                 selectedId = selectedEnvironmentId,
                 onSelect = { selectedEnvironmentId = it },
             )
+            TextButton(onClick = { showCreateEnvironmentSheet = true }) { Text("+ Créer un environnement") }
 
             Text("Phase de départ", style = MaterialTheme.typography.labelMedium)
             com.culture.tracker.ui.components.PhaseGridSelector(selected = startingPhase, onSelect = { startingPhase = it })
 
-            OutlinedTextField(
-                value = startDate.toString(),
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Date de début") },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    TextButton(onClick = { showDatePicker = true }) { Text("Choisir") }
-                },
-            )
+            Text("Dates de phase", style = MaterialTheme.typography.labelMedium)
+            GrowthPhase.entries.filter { it.ordinal <= startingPhase.ordinal }.forEach { phase ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(phase.icon, contentDescription = null, tint = phase.themedColor(), modifier = Modifier.size(20.dp))
+                    Text(phase.label, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { editingDateForPhase = phase }) {
+                        Text(phaseDates[phase]?.toString() ?: "Choisir")
+                    }
+                }
+            }
+
+            Text("Medium", style = MaterialTheme.typography.labelMedium)
+            ExposedDropdownMenuBox(expanded = mediumExpanded, onExpandedChange = { mediumExpanded = it }) {
+                OutlinedTextField(
+                    value = selectedMedium?.label ?: "Choisir un medium",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Type de medium") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mediumExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                )
+                DropdownMenu(expanded = mediumExpanded, onDismissRequest = { mediumExpanded = false }) {
+                    GrowMedium.entries.forEach { medium ->
+                        DropdownMenuItem(text = { Text(medium.label) }, onClick = { selectedMedium = medium; mediumExpanded = false })
+                    }
+                }
+            }
+            if (selectedMedium != null) {
+                OutlinedTextField(
+                    value = mediumDescription,
+                    onValueChange = { mediumDescription = it },
+                    label = { Text("Description du medium") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -303,10 +374,12 @@ private fun CreatePlantSheet(
                         selectedGeneticsId,
                         selectedEnvironmentId,
                         startingPhase,
-                        startDate,
                         wateringInterval.toIntOrNull(),
                         fertilizingInterval.toIntOrNull(),
                         count.toIntOrNull()?.coerceAtLeast(1) ?: 1,
+                        selectedMedium,
+                        mediumDescription.ifBlank { null },
+                        phaseDates.toMap(),
                     )
                 },
                 enabled = name.isNotBlank(),
@@ -315,22 +388,34 @@ private fun CreatePlantSheet(
         }
     }
 
-    if (showDatePicker) {
+    editingDateForPhase?.let { phase ->
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            initialSelectedDateMillis = (phaseDates[phase] ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
         )
         DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
+            onDismissRequest = { editingDateForPhase = null },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
-                        startDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                        phaseDates[phase] = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                     }
-                    showDatePicker = false
+                    editingDateForPhase = null
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { editingDateForPhase = null }) { Text("Annuler") } },
         ) { DatePicker(state = datePickerState) }
+    }
+
+    if (showCreateEnvironmentSheet) {
+        CreateEnvironmentSheet(
+            onDismiss = { showCreateEnvironmentSheet = false },
+            onCreate = { envName, hours, size, material, lightType, power, spectrum, model ->
+                onCreateEnvironment(envName, hours, size, material, lightType, power, spectrum, model) { id ->
+                    selectedEnvironmentId = id
+                }
+                showCreateEnvironmentSheet = false
+            },
+        )
     }
 }
 

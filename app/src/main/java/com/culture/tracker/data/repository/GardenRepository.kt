@@ -56,11 +56,29 @@ class GardenRepository(
     suspend fun updateEnvironment(environment: Environment) = environmentDao.update(environment)
     suspend fun deleteEnvironment(environment: Environment) = environmentDao.delete(environment)
 
-    suspend fun createPlant(plant: Plant, initialHeightCm: Double? = null): Long {
+    /**
+     * Crée une plante. Si [phaseDates] est fourni, une entrée d'historique est créée pour
+     * chaque phase déjà traversée (de la première à [Plant.currentPhase]), bornée par la date
+     * de la phase suivante ; sinon une seule entrée ouverte est créée pour la phase de départ.
+     */
+    suspend fun createPlant(plant: Plant, initialHeightCm: Double? = null, phaseDates: Map<GrowthPhase, LocalDate>? = null): Long {
         val plantId = plantDao.upsert(plant)
-        phaseHistoryDao.upsert(
-            PhaseHistory(plantId = plantId, phase = plant.currentPhase, startDate = plant.startDate),
-        )
+        val orderedPhases = phaseDates
+            ?.keys
+            ?.filter { it.ordinal <= plant.currentPhase.ordinal }
+            ?.sortedBy { it.ordinal }
+            ?.takeIf { it.isNotEmpty() }
+        if (orderedPhases != null) {
+            orderedPhases.forEachIndexed { index, phase ->
+                val start = phaseDates.getValue(phase)
+                val end = if (phase == plant.currentPhase) null else orderedPhases.getOrNull(index + 1)?.let { phaseDates[it] }
+                phaseHistoryDao.upsert(PhaseHistory(plantId = plantId, phase = phase, startDate = start, endDate = end))
+            }
+        } else {
+            phaseHistoryDao.upsert(
+                PhaseHistory(plantId = plantId, phase = plant.currentPhase, startDate = plant.startDate),
+            )
+        }
         if (initialHeightCm != null) {
             heightMeasurementDao.upsert(HeightMeasurement(plantId = plantId, date = plant.startDate, heightCm = initialHeightCm))
         }

@@ -13,6 +13,12 @@ enum class GrowthPhase(val label: String, val typicalDurationDays: Int) {
     MATURATION("Maturation", 14),
 }
 
+enum class GrowMedium(val label: String) {
+    TERRE("Terre"),
+    HYDRO("Hydro"),
+    COCO("Coco"),
+}
+
 enum class ActionType(val label: String, val colorHex: Long, val darkColorHex: Long) {
     ARROSAGE("Arrosage", 0xFF0284C7, 0xFF38BDF8),
     ENGRAIS("Engrais", 0xFF16A34A, 0xFF4ADE80),

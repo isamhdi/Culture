@@ -10,6 +10,7 @@ import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
 import com.culture.tracker.domain.defaultHeightCmFor
+import com.culture.tracker.domain.model.GrowMedium
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PropagationType
 import java.io.File
@@ -77,6 +78,9 @@ class PlantsViewModel(
         fertilizingIntervalDays: Int?,
         count: Int = 1,
         photoFile: File? = null,
+        medium: GrowMedium? = null,
+        mediumDescription: String? = null,
+        phaseDates: Map<GrowthPhase, LocalDate>? = null,
     ) {
         viewModelScope.launch {
             repeat(count) { index ->
@@ -91,8 +95,11 @@ class PlantsViewModel(
                         startDate = startDate,
                         wateringIntervalDays = wateringIntervalDays,
                         fertilizingIntervalDays = fertilizingIntervalDays,
+                        medium = medium,
+                        mediumDescription = mediumDescription,
                     ),
                     initialHeightCm = defaultHeightCmFor(startingPhase),
+                    phaseDates = phaseDates,
                 )
                 photoFile?.let { photoRepository.savePhotoRecord(plantId, it) }
             }
@@ -100,6 +107,34 @@ class PlantsViewModel(
     }
 
     fun createPhotoCaptureTarget(): Pair<File, android.net.Uri> = photoRepository.createPhotoCaptureTarget()
+
+    fun createEnvironment(
+        name: String,
+        lightHoursPerDay: Double,
+        size: String?,
+        material: String?,
+        lightingType: String?,
+        lightingPowerWatts: Int?,
+        lightingSpectrum: String?,
+        lightingModel: String?,
+        onCreated: (Long) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val id = repository.createEnvironment(
+                Environment(
+                    name = name,
+                    lightHoursPerDay = lightHoursPerDay,
+                    sizeDescription = size,
+                    materialDescription = material,
+                    lightingType = lightingType,
+                    lightingPowerWatts = lightingPowerWatts,
+                    lightingSpectrum = lightingSpectrum,
+                    lightingModel = lightingModel,
+                ),
+            )
+            onCreated(id)
+        }
+    }
 
     fun archivePlant(plant: Plant) {
         viewModelScope.launch { repository.archivePlant(plant) }
