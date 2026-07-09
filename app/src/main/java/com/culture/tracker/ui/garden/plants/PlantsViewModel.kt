@@ -12,6 +12,7 @@ import com.culture.tracker.data.repository.PhotoRepository
 import com.culture.tracker.domain.defaultHeightCmFor
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PropagationType
+import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -74,23 +75,31 @@ class PlantsViewModel(
         startDate: LocalDate,
         wateringIntervalDays: Int?,
         fertilizingIntervalDays: Int?,
+        count: Int = 1,
+        photoFile: File? = null,
     ) {
         viewModelScope.launch {
-            repository.createPlant(
-                Plant(
-                    name = name,
-                    propagationType = propagationType,
-                    geneticsId = geneticsId,
-                    environmentId = environmentId,
-                    currentPhase = startingPhase,
-                    startDate = startDate,
-                    wateringIntervalDays = wateringIntervalDays,
-                    fertilizingIntervalDays = fertilizingIntervalDays,
-                ),
-                initialHeightCm = defaultHeightCmFor(startingPhase),
-            )
+            repeat(count) { index ->
+                val plantName = if (count > 1) "$name #${index + 1}" else name
+                val plantId = repository.createPlant(
+                    Plant(
+                        name = plantName,
+                        propagationType = propagationType,
+                        geneticsId = geneticsId,
+                        environmentId = environmentId,
+                        currentPhase = startingPhase,
+                        startDate = startDate,
+                        wateringIntervalDays = wateringIntervalDays,
+                        fertilizingIntervalDays = fertilizingIntervalDays,
+                    ),
+                    initialHeightCm = defaultHeightCmFor(startingPhase),
+                )
+                photoFile?.let { photoRepository.savePhotoRecord(plantId, it) }
+            }
         }
     }
+
+    fun createPhotoCaptureTarget(): Pair<File, android.net.Uri> = photoRepository.createPhotoCaptureTarget()
 
     fun archivePlant(plant: Plant) {
         viewModelScope.launch { repository.archivePlant(plant) }

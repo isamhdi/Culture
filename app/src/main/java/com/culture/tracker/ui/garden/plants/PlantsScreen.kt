@@ -1,6 +1,10 @@
 package com.culture.tracker.ui.garden.plants
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -8,13 +12,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -28,6 +35,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -46,11 +54,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PropagationType
 import com.culture.tracker.ui.theme.themedColor
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -62,6 +75,11 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
     val state by viewModel.uiState.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf<GrowthPhase?>(null) }
+    var pendingPhotoFile by remember { mutableStateOf<File?>(null) }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (!success) pendingPhotoFile = null
+    }
 
     val filteredPlants = state.plants.filter { selectedFilter == null || it.currentPhase == selectedFilter }
 
@@ -137,10 +155,17 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
     if (showCreateSheet) {
         CreatePlantSheet(
             state = state,
-            onDismiss = { showCreateSheet = false },
+            photoFile = pendingPhotoFile,
+            onTakePhoto = {
+                val (file, uri) = viewModel.createPhotoCaptureTarget()
+                pendingPhotoFile = file
+                takePictureLauncher.launch(uri)
+            },
+            onDismiss = { showCreateSheet = false; pendingPhotoFile = null },
             onCreateGenetics = { name, breeder, onCreated -> viewModel.createGenetics(name, breeder, onCreated) },
-            onCreate = { name, propagation, geneticsId, environmentId, phase, startDate, watering, fertilizing ->
-                viewModel.createPlant(name, propagation, geneticsId, environmentId, phase, startDate, watering, fertilizing)
+            onCreate = { name, propagation, geneticsId, environmentId, phase, startDate, watering, fertilizing, count ->
+                viewModel.createPlant(name, propagation, geneticsId, environmentId, phase, startDate, watering, fertilizing, count, pendingPhotoFile)
+                pendingPhotoFile = null
                 showCreateSheet = false
             },
         )
@@ -151,9 +176,11 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
 @Composable
 private fun CreatePlantSheet(
     state: PlantsUiState,
+    photoFile: File?,
+    onTakePhoto: () -> Unit,
     onDismiss: () -> Unit,
     onCreateGenetics: (String, String?, (Long) -> Unit) -> Unit,
-    onCreate: (String, PropagationType, Long?, Long?, GrowthPhase, LocalDate, Int?, Int?) -> Unit,
+    onCreate: (String, PropagationType, Long?, Long?, GrowthPhase, LocalDate, Int?, Int?, Int) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var name by remember { mutableStateOf("") }
@@ -166,6 +193,7 @@ private fun CreatePlantSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var wateringInterval by remember { mutableStateOf("") }
     var fertilizingInterval by remember { mutableStateOf("") }
+    var count by remember { mutableStateOf("1") }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -211,22 +239,8 @@ private fun CreatePlantSheet(
                 onSelect = { selectedEnvironmentId = it },
             )
 
-            var phaseExpanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(expanded = phaseExpanded, onExpandedChange = { phaseExpanded = it }) {
-                OutlinedTextField(
-                    value = startingPhase.label,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Phase de départ") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = phaseExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                )
-                DropdownMenu(expanded = phaseExpanded, onDismissRequest = { phaseExpanded = false }) {
-                    GrowthPhase.entries.forEach { phase ->
-                        DropdownMenuItem(text = { Text(phase.label) }, onClick = { startingPhase = phase; phaseExpanded = false })
-                    }
-                }
-            }
+            Text("Phase de départ", style = MaterialTheme.typography.labelMedium)
+            com.culture.tracker.ui.components.PhaseGridSelector(selected = startingPhase, onSelect = { startingPhase = it })
 
             OutlinedTextField(
                 value = startDate.toString(),
@@ -254,6 +268,33 @@ private fun CreatePlantSheet(
                 )
             }
 
+            Text("Photo", style = MaterialTheme.typography.labelMedium)
+            Box(
+                modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (photoFile != null) {
+                    AsyncImage(
+                        model = photoFile,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)),
+                    )
+                }
+                IconButton(onClick = onTakePhoto) {
+                    Icon(Icons.Filled.AddAPhoto, contentDescription = "Ajouter une photo")
+                }
+            }
+
+            OutlinedTextField(
+                value = count,
+                onValueChange = { count = it.filter(Char::isDigit) },
+                label = { Text("Nombre d'exemplaires") },
+                supportingText = { Text("Crée plusieurs plantes avec le même réglage") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             TextButton(
                 onClick = {
                     onCreate(
@@ -265,6 +306,7 @@ private fun CreatePlantSheet(
                         startDate,
                         wateringInterval.toIntOrNull(),
                         fertilizingInterval.toIntOrNull(),
+                        count.toIntOrNull()?.coerceAtLeast(1) ?: 1,
                     )
                 },
                 enabled = name.isNotBlank(),

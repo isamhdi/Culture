@@ -139,7 +139,7 @@ private fun CreateEnvironmentSheet(
 ) {
     val sheetState = rememberModalBottomSheetState()
     var name by remember { mutableStateOf("") }
-    var lightHours by remember { mutableStateOf("") }
+    var lightHours by remember { mutableStateOf(12f) }
     var size by remember { mutableStateOf("") }
     var material by remember { mutableStateOf("") }
     var lightingType by remember { mutableStateOf("") }
@@ -155,12 +155,7 @@ private fun CreateEnvironmentSheet(
             com.culture.tracker.ui.components.SheetHeader("Nouvel environnement", onClose = onDismiss)
 
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(
-                value = lightHours,
-                onValueChange = { lightHours = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("Heures de lumière/jour") },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            com.culture.tracker.ui.components.ExposureTimeSlider(hours = lightHours, onHoursChange = { lightHours = it })
             OutlinedTextField(value = size, onValueChange = { size = it }, label = { Text("Taille (ex : 80x80x160cm)") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = material, onValueChange = { material = it }, label = { Text("Matériel") }, modifier = Modifier.fillMaxWidth())
 
@@ -180,7 +175,7 @@ private fun CreateEnvironmentSheet(
                 onClick = {
                     onCreate(
                         name,
-                        lightHours.toDoubleOrNull() ?: 0.0,
+                        lightHours.toDouble(),
                         size.ifBlank { null },
                         material.ifBlank { null },
                         lightingType.ifBlank { null },
