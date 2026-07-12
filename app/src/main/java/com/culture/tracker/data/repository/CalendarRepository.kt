@@ -1,8 +1,11 @@
 package com.culture.tracker.data.repository
 
+import androidx.room.withTransaction
+import com.culture.tracker.data.local.AppDatabase
 import com.culture.tracker.data.local.dao.CalendarActionDao
 import com.culture.tracker.data.local.dao.EnvironmentReadingDao
 import com.culture.tracker.data.local.dao.FertilizerDao
+import com.culture.tracker.data.local.dao.PlantDao
 import com.culture.tracker.data.local.entity.CalendarAction
 import com.culture.tracker.data.local.entity.EnvironmentReading
 import com.culture.tracker.data.local.entity.Fertilizer
@@ -14,6 +17,8 @@ class CalendarRepository(
     private val calendarActionDao: CalendarActionDao,
     private val fertilizerDao: FertilizerDao,
     private val environmentReadingDao: EnvironmentReadingDao,
+    private val plantDao: PlantDao,
+    private val appDatabase: AppDatabase,
 ) {
     fun observeActionsBetween(start: LocalDate, end: LocalDate): Flow<List<CalendarAction>> =
         calendarActionDao.observeBetween(start, end)
@@ -29,7 +34,14 @@ class CalendarRepository(
     fun observeLatestReadings(): Flow<List<EnvironmentReading>> =
         environmentReadingDao.observeLatestPerEnvironment()
 
-    suspend fun addAction(action: CalendarAction): Long = calendarActionDao.upsert(action)
+    /** Enregistre une action. Une action DECES archive automatiquement la plante concernée. */
+    suspend fun addAction(action: CalendarAction): Long = appDatabase.withTransaction {
+        val id = calendarActionDao.upsert(action)
+        if (action.actionType == ActionType.DECES) {
+            plantDao.getById(action.plantId)?.let { plantDao.update(it.copy(archived = true)) }
+        }
+        id
+    }
     suspend fun updateAction(action: CalendarAction) = calendarActionDao.update(action)
     suspend fun deleteAction(action: CalendarAction) = calendarActionDao.delete(action)
 

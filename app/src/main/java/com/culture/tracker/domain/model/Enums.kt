@@ -55,3 +55,9 @@ enum class EnvironmentMeasurementType(val label: String, val unit: String) {
     AVERAGE_PPFD("PPFD moyen", "µmol/m²/s"),
     VPD("VPD", "kPa"),
 }
+
+/** Origine d'un capteur externe attribué à un environnement (lecture réseau local, opt-in). */
+enum class SensorSourceType(val label: String) {
+    HOME_ASSISTANT("Home Assistant"),
+    WEBHOOK("URL / webhook"),
+}

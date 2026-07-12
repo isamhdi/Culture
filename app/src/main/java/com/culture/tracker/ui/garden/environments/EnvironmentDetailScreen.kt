@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -14,7 +15,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -31,6 +36,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -42,10 +50,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.culture.tracker.data.local.entity.SensorSource
 import com.culture.tracker.domain.model.EnvironmentMeasurementType
+import com.culture.tracker.domain.model.SensorSourceType
 import com.culture.tracker.ui.components.ChartPoint
 import com.culture.tracker.ui.components.SimpleLineChart
 import java.time.Instant
@@ -67,6 +78,7 @@ fun EnvironmentDetailScreen(
     val state by viewModel.uiState.collectAsState()
     var showReadingSheet by remember { mutableStateOf(false) }
     var showLogSheet by remember { mutableStateOf(false) }
+    var showSensorSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -100,6 +112,18 @@ fun EnvironmentDetailScreen(
                         }
                     }
                 }
+            }
+
+            item { HorizontalDivider() }
+
+            item {
+                SensorSourceSection(
+                    networkSensorsEnabled = state.networkSensorsEnabled,
+                    sensorSource = state.sensorSource,
+                    onAddOrEdit = { showSensorSheet = true },
+                    onTest = { viewModel.testSensorSource() },
+                    onDelete = { viewModel.deleteSensorSource() },
+                )
             }
 
             item { HorizontalDivider() }
@@ -189,8 +213,8 @@ fun EnvironmentDetailScreen(
     if (showReadingSheet) {
         AddReadingSheet(
             onDismiss = { showReadingSheet = false },
-            onSave = { temp, hum ->
-                viewModel.recordReading(temp, hum)
+            onSave = { temp, hum, recordedAt ->
+                viewModel.recordReading(temp, hum, recordedAt)
                 showReadingSheet = false
             },
         )
@@ -205,18 +229,206 @@ fun EnvironmentDetailScreen(
             },
         )
     }
+
+    if (showSensorSheet) {
+        SensorSourceSheet(
+            initial = state.sensorSource,
+            onDismiss = { showSensorSheet = false },
+            onSave = { type, name, baseUrl, token, tempEntity, humidityEntity ->
+                viewModel.saveSensorSource(type, name, baseUrl, token, tempEntity, humidityEntity)
+                showSensorSheet = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun SensorSourceSection(
+    networkSensorsEnabled: Boolean,
+    sensorSource: SensorSource?,
+    onAddOrEdit: () -> Unit,
+    onTest: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column {
+        Text("Capteur externe", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+
+        if (!networkSensorsEnabled) {
+            Text(
+                "Active \"Capteurs externes\" dans Réglages > Réseau pour connecter un capteur Home Assistant ou une URL à cet environnement.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@Column
+        }
+
+        if (sensorSource == null) {
+            TextButton(onClick = onAddOrEdit) { Text("+ Ajouter un capteur externe") }
+            return@Column
+        }
+
+        Card(shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(Icons.Filled.Sensors, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f)) {
+                        Text(sensorSource.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(sensorSource.type.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = onAddOrEdit) { Icon(Icons.Filled.Edit, contentDescription = "Modifier") }
+                    IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Supprimer") }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+                when (sensorSource.lastFetchAt) {
+                    null -> Text("Jamais testé.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else -> {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (sensorSource.lastFetchSuccess == true) {
+                                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            } else {
+                                Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                            }
+                            Text(
+                                "Dernier relevé le " + sensorSource.lastFetchAt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        sensorSource.lastError?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+
+                TextButton(onClick = onTest, modifier = Modifier.padding(top = 8.dp)) { Text("Tester maintenant") }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddReadingSheet(onDismiss: () -> Unit, onSave: (Double, Double) -> Unit) {
+private fun SensorSourceSheet(
+    initial: SensorSource?,
+    onDismiss: () -> Unit,
+    onSave: (SensorSourceType, String, String, String?, String?, String?) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var type by remember { mutableStateOf(initial?.type ?: SensorSourceType.HOME_ASSISTANT) }
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var baseUrl by remember { mutableStateOf(initial?.baseUrl ?: "") }
+    var accessToken by remember { mutableStateOf(initial?.accessToken ?: "") }
+    var temperatureEntityId by remember { mutableStateOf(initial?.temperatureEntityId ?: "") }
+    var humidityEntityId by remember { mutableStateOf(initial?.humidityEntityId ?: "") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.culture.tracker.ui.components.SheetHeader("Capteur externe", onClose = onDismiss)
+
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SensorSourceType.entries.forEachIndexed { index, entry ->
+                    SegmentedButton(
+                        selected = type == entry,
+                        onClick = { type = entry },
+                        shape = SegmentedButtonDefaults.itemShape(index, SensorSourceType.entries.size),
+                    ) { Text(entry.label) }
+                }
+            }
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nom du capteur") },
+                placeholder = { Text(type.label) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            when (type) {
+                SensorSourceType.HOME_ASSISTANT -> {
+                    OutlinedTextField(
+                        value = baseUrl,
+                        onValueChange = { baseUrl = it },
+                        label = { Text("URL Home Assistant") },
+                        placeholder = { Text("http://192.168.1.10:8123") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = accessToken,
+                        onValueChange = { accessToken = it },
+                        label = { Text("Jeton d'accès longue durée") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = temperatureEntityId,
+                        onValueChange = { temperatureEntityId = it },
+                        label = { Text("Entité température (optionnel)") },
+                        placeholder = { Text("sensor.chambre_temperature") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = humidityEntityId,
+                        onValueChange = { humidityEntityId = it },
+                        label = { Text("Entité humidité (optionnel)") },
+                        placeholder = { Text("sensor.chambre_humidite") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                SensorSourceType.WEBHOOK -> {
+                    OutlinedTextField(
+                        value = baseUrl,
+                        onValueChange = { baseUrl = it },
+                        label = { Text("URL du capteur") },
+                        placeholder = { Text("http://192.168.1.20/mesure") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        "L'URL doit répondre avec un JSON du type {\"temperature\": 21.5, \"humidity\": 55}.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            TextButton(
+                onClick = {
+                    onSave(
+                        type,
+                        name.ifBlank { type.label },
+                        baseUrl,
+                        accessToken.ifBlank { null },
+                        temperatureEntityId.ifBlank { null },
+                        humidityEntityId.ifBlank { null },
+                    )
+                },
+                enabled = baseUrl.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Enregistrer") }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddReadingSheet(onDismiss: () -> Unit, onSave: (Double, Double, java.time.LocalDateTime) -> Unit) {
     val sheetState = rememberModalBottomSheetState()
     var temperature by remember { mutableStateOf("") }
     var humidity by remember { mutableStateOf("") }
+    var recordedAt by remember { mutableStateOf(java.time.LocalDateTime.now()) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             com.culture.tracker.ui.components.SheetHeader("Nouveau relevé", onClose = onDismiss)
+            com.culture.tracker.ui.components.DateTimePickerRow(
+                dateTime = recordedAt,
+                onDateTimeChange = { recordedAt = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
             OutlinedTextField(
                 value = temperature,
                 onValueChange = { temperature = it.filter { c -> c.isDigit() || c == '.' || c == '-' } },
@@ -233,7 +445,7 @@ private fun AddReadingSheet(onDismiss: () -> Unit, onSave: (Double, Double) -> U
                 onClick = {
                     val t = temperature.toDoubleOrNull()
                     val h = humidity.toDoubleOrNull()
-                    if (t != null && h != null) onSave(t, h)
+                    if (t != null && h != null) onSave(t, h, recordedAt)
                 },
                 enabled = temperature.toDoubleOrNull() != null && humidity.toDoubleOrNull() != null,
                 modifier = Modifier.fillMaxWidth(),

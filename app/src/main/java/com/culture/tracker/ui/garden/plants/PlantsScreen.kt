@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,7 +50,6 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -92,7 +95,9 @@ fun PlantsScreen(onPlantClick: (Long) -> Unit = {}, viewModel: PlantsViewModel =
     val groupedPlants = groupPlants(filteredPlants, filters.groupBy, state.environments)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Plantes") }) },
+        // Intégré sous l'onglet "Plantes" de GardenScreen : le PrimaryTabRow fait déjà
+        // office d'en-tête, pas besoin d'une TopAppBar ni de réserver l'inset du haut ici.
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateSheet = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Ajouter une plante")
@@ -257,12 +262,12 @@ private fun CreatePlantSheet(
             }
 
             DropdownField(
-                label = "Génétique (variété)",
+                label = "Variété",
                 options = state.genetics.map { it.id to it.name },
                 selectedId = selectedGeneticsId,
                 onSelect = { selectedGeneticsId = it },
                 allowCreateNew = true,
-                newValueLabel = "Nouvelle génétique",
+                newValueLabel = "Nouvelle variété",
                 newValue = newGeneticsName,
                 onNewValueChange = { newGeneticsName = it },
                 onCreateNew = {

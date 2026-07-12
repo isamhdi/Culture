@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Autorise le trafic HTTP en clair : nécessaire pour joindre un serveur Home Assistant ou un
+    capteur (ESPHome, etc.) sur le réseau local, qui n'a presque jamais de certificat TLS valide
+    en interne. N'a d'effet que si l'utilisateur active explicitement "Capteurs externes" dans
+    les Réglages et configure lui-même une source — aucune requête n'est possible sinon.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

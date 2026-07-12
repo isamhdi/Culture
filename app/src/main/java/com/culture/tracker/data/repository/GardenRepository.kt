@@ -1,5 +1,7 @@
 package com.culture.tracker.data.repository
 
+import androidx.room.withTransaction
+import com.culture.tracker.data.local.AppDatabase
 import com.culture.tracker.data.local.dao.EnvironmentDao
 import com.culture.tracker.data.local.dao.EnvironmentLogDao
 import com.culture.tracker.data.local.dao.GeneticsDao
@@ -26,6 +28,7 @@ class GardenRepository(
     private val heightMeasurementDao: HeightMeasurementDao,
     private val plantLogDao: PlantLogDao,
     private val environmentLogDao: EnvironmentLogDao,
+    private val appDatabase: AppDatabase,
 ) {
     fun observePlants(): Flow<List<Plant>> = plantDao.observeActive()
     fun observeArchivedPlants(): Flow<List<Plant>> = plantDao.observeArchived()
@@ -52,6 +55,9 @@ class GardenRepository(
         }
     }
 
+    /** Utilisé pour distinguer une vraie première installation d'une simple mise à jour. */
+    suspend fun hasAnyPlantOrEnvironment(): Boolean = plantDao.count() > 0 || environmentDao.count() > 0
+
     suspend fun createEnvironment(environment: Environment): Long = environmentDao.upsert(environment)
     suspend fun updateEnvironment(environment: Environment) = environmentDao.update(environment)
     suspend fun deleteEnvironment(environment: Environment) = environmentDao.delete(environment)
@@ -61,29 +67,30 @@ class GardenRepository(
      * chaque phase déjà traversée (de la première à [Plant.currentPhase]), bornée par la date
      * de la phase suivante ; sinon une seule entrée ouverte est créée pour la phase de départ.
      */
-    suspend fun createPlant(plant: Plant, initialHeightCm: Double? = null, phaseDates: Map<GrowthPhase, LocalDate>? = null): Long {
-        val plantId = plantDao.upsert(plant)
-        val orderedPhases = phaseDates
-            ?.keys
-            ?.filter { it.ordinal <= plant.currentPhase.ordinal }
-            ?.sortedBy { it.ordinal }
-            ?.takeIf { it.isNotEmpty() }
-        if (orderedPhases != null) {
-            orderedPhases.forEachIndexed { index, phase ->
-                val start = phaseDates.getValue(phase)
-                val end = if (phase == plant.currentPhase) null else orderedPhases.getOrNull(index + 1)?.let { phaseDates[it] }
-                phaseHistoryDao.upsert(PhaseHistory(plantId = plantId, phase = phase, startDate = start, endDate = end))
+    suspend fun createPlant(plant: Plant, initialHeightCm: Double? = null, phaseDates: Map<GrowthPhase, LocalDate>? = null): Long =
+        appDatabase.withTransaction {
+            val plantId = plantDao.upsert(plant)
+            val orderedPhases = phaseDates
+                ?.keys
+                ?.filter { it.ordinal <= plant.currentPhase.ordinal }
+                ?.sortedBy { it.ordinal }
+                ?.takeIf { it.isNotEmpty() }
+            if (orderedPhases != null) {
+                orderedPhases.forEachIndexed { index, phase ->
+                    val start = phaseDates.getValue(phase)
+                    val end = if (phase == plant.currentPhase) null else orderedPhases.getOrNull(index + 1)?.let { phaseDates[it] }
+                    phaseHistoryDao.upsert(PhaseHistory(plantId = plantId, phase = phase, startDate = start, endDate = end))
+                }
+            } else {
+                phaseHistoryDao.upsert(
+                    PhaseHistory(plantId = plantId, phase = plant.currentPhase, startDate = plant.startDate),
+                )
             }
-        } else {
-            phaseHistoryDao.upsert(
-                PhaseHistory(plantId = plantId, phase = plant.currentPhase, startDate = plant.startDate),
-            )
+            if (initialHeightCm != null) {
+                heightMeasurementDao.upsert(HeightMeasurement(plantId = plantId, date = plant.startDate, heightCm = initialHeightCm))
+            }
+            plantId
         }
-        if (initialHeightCm != null) {
-            heightMeasurementDao.upsert(HeightMeasurement(plantId = plantId, date = plant.startDate, heightCm = initialHeightCm))
-        }
-        return plantId
-    }
 
     suspend fun updatePlant(plant: Plant) = plantDao.update(plant)
     suspend fun archivePlant(plant: Plant) = plantDao.update(plant.copy(archived = true))
@@ -95,13 +102,15 @@ class GardenRepository(
 
     /** Change de phase, en clôturant la précédente et en autorisant une date rétroactive. */
     suspend fun changePhase(plantId: Long, newPhase: GrowthPhase, effectiveDate: LocalDate) {
-        val history = phaseHistoryDao.getForPlant(plantId)
-        val openPhase = history.lastOrNull { it.endDate == null }
-        if (openPhase != null) {
-            phaseHistoryDao.update(openPhase.copy(endDate = effectiveDate))
+        appDatabase.withTransaction {
+            val history = phaseHistoryDao.getForPlant(plantId)
+            val openPhase = history.lastOrNull { it.endDate == null }
+            if (openPhase != null) {
+                phaseHistoryDao.update(openPhase.copy(endDate = effectiveDate))
+            }
+            phaseHistoryDao.upsert(PhaseHistory(plantId = plantId, phase = newPhase, startDate = effectiveDate))
+            plantDao.getById(plantId)?.let { plantDao.update(it.copy(currentPhase = newPhase)) }
         }
-        phaseHistoryDao.upsert(PhaseHistory(plantId = plantId, phase = newPhase, startDate = effectiveDate))
-        plantDao.getById(plantId)?.let { plantDao.update(it.copy(currentPhase = newPhase)) }
     }
 
     /**
@@ -110,11 +119,13 @@ class GardenRepository(
      * est synchronisée pour que le compteur de jours reste juste.
      */
     suspend fun editPhaseHistoryDate(phaseHistory: PhaseHistory, newStartDate: LocalDate) {
-        phaseHistoryDao.update(phaseHistory.copy(startDate = newStartDate))
-        val allHistory = phaseHistoryDao.getForPlant(phaseHistory.plantId)
-        val firstEntry = allHistory.minByOrNull { it.id }
-        if (firstEntry?.id == phaseHistory.id) {
-            plantDao.getById(phaseHistory.plantId)?.let { plantDao.update(it.copy(startDate = newStartDate)) }
+        appDatabase.withTransaction {
+            phaseHistoryDao.update(phaseHistory.copy(startDate = newStartDate))
+            val allHistory = phaseHistoryDao.getForPlant(phaseHistory.plantId)
+            val firstEntry = allHistory.minByOrNull { it.id }
+            if (firstEntry?.id == phaseHistory.id) {
+                plantDao.getById(phaseHistory.plantId)?.let { plantDao.update(it.copy(startDate = newStartDate)) }
+            }
         }
     }
 
@@ -123,13 +134,15 @@ class GardenRepository(
      * qui redevient "ouverte" (endDate = null). Ne fait rien s'il n'y a pas de phase antérieure.
      */
     suspend fun revertToPreviousPhase(currentOpenPhase: PhaseHistory) {
-        val history = phaseHistoryDao.getForPlant(currentOpenPhase.plantId).sortedBy { it.id }
-        val idx = history.indexOfFirst { it.id == currentOpenPhase.id }
-        if (idx <= 0) return
-        val previous = history[idx - 1]
-        phaseHistoryDao.delete(currentOpenPhase)
-        phaseHistoryDao.update(previous.copy(endDate = null))
-        plantDao.getById(currentOpenPhase.plantId)?.let { plantDao.update(it.copy(currentPhase = previous.phase)) }
+        appDatabase.withTransaction {
+            val history = phaseHistoryDao.getForPlant(currentOpenPhase.plantId).sortedBy { it.id }
+            val idx = history.indexOfFirst { it.id == currentOpenPhase.id }
+            if (idx <= 0) return@withTransaction
+            val previous = history[idx - 1]
+            phaseHistoryDao.delete(currentOpenPhase)
+            phaseHistoryDao.update(previous.copy(endDate = null))
+            plantDao.getById(currentOpenPhase.plantId)?.let { plantDao.update(it.copy(currentPhase = previous.phase)) }
+        }
     }
 
     fun observePlantLogs(plantId: Long): Flow<List<PlantLog>> = plantLogDao.observeForPlant(plantId)

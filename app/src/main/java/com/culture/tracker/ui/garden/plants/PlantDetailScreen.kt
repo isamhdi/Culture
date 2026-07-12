@@ -77,7 +77,6 @@ import com.culture.tracker.ui.components.GrowthChart
 import com.culture.tracker.ui.components.PhaseChip
 import com.culture.tracker.ui.components.PhaseTimeline
 import com.culture.tracker.ui.components.SheetHeader
-import com.culture.tracker.ui.theme.HandoffColors
 import com.culture.tracker.ui.theme.icon
 import com.culture.tracker.ui.theme.themedColor
 import java.io.File
@@ -121,7 +120,7 @@ fun PlantDetailScreen(
                         Icon(Icons.Filled.Edit, contentDescription = "Modifier la plante")
                     }
                     IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Supprimer la plante", tint = HandoffColors.Danger)
+                        Icon(Icons.Filled.Close, contentDescription = "Supprimer la plante", tint = MaterialTheme.colorScheme.error)
                     }
                 },
             )
@@ -218,12 +217,29 @@ fun PlantDetailScreen(
                         }
                     }
                     items(state.photos, key = { it.id }) { photo ->
-                        AsyncImage(
-                            model = File(photo.filePath),
-                            contentDescription = photo.caption,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)),
-                        )
+                        Box(modifier = Modifier.size(96.dp)) {
+                            AsyncImage(
+                                model = File(photo.filePath),
+                                contentDescription = photo.caption,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)),
+                            )
+                            IconButton(
+                                onClick = { viewModel.deletePhoto(photo) },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(28.dp)
+                                    .padding(2.dp)
+                                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Supprimer la photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -281,7 +297,7 @@ fun PlantDetailScreen(
                                         "cm / jour",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontFamily = FontFamily.Monospace,
-                                        color = HandoffColors.TextTertiary,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     IconButton(onClick = { showAddHeightDialog = true }, modifier = Modifier.size(28.dp)) {
                                         Icon(Icons.Filled.Add, contentDescription = "Ajouter un relevé de hauteur")
@@ -319,13 +335,13 @@ fun PlantDetailScreen(
                     enableDismissFromEndToStart = isOpenAndRevertible,
                     backgroundContent = {
                         Box(
-                            modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium).background(HandoffColors.Danger.copy(alpha = 0.25f)),
+                            modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.error.copy(alpha = 0.25f)),
                             contentAlignment = Alignment.CenterEnd,
                         ) {
                             Icon(
                                 Icons.Filled.Delete,
                                 contentDescription = null,
-                                tint = HandoffColors.Danger,
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(horizontal = 20.dp),
                             )
                         }
@@ -525,7 +541,7 @@ fun PlantDetailScreen(
                     viewModel.archivePlant()
                     showDeleteConfirm = false
                     onBack()
-                }) { Text("Supprimer", color = HandoffColors.Danger) }
+                }) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Annuler") } },
         )
@@ -606,12 +622,12 @@ private fun EditPlantSheet(
             }
 
             DropdownField(
-                label = "Génétique (variété)",
+                label = "Variété",
                 options = genetics.map { it.id to it.name },
                 selectedId = selectedGeneticsId,
                 onSelect = { selectedGeneticsId = it },
                 allowCreateNew = true,
-                newValueLabel = "Nouvelle génétique",
+                newValueLabel = "Nouvelle variété",
                 newValue = newGeneticsName,
                 onNewValueChange = { newGeneticsName = it },
                 onCreateNew = {

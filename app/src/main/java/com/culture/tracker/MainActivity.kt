@@ -19,10 +19,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.culture.tracker.ui.navigation.CultureNavHost
+import com.culture.tracker.ui.onboarding.OnboardingScreen
 import com.culture.tracker.ui.settings.SettingsViewModel
 import com.culture.tracker.ui.splash.SplashScreen
 import com.culture.tracker.ui.theme.CultureTheme
 import org.koin.androidx.compose.koinViewModel
+
+private enum class AppStage { SPLASH, ONBOARDING, MAIN }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,14 +46,19 @@ class MainActivity : ComponentActivity() {
             }
 
             var showSplash by remember { mutableStateOf(true) }
+            val stage = when {
+                showSplash -> AppStage.SPLASH
+                !settings.hasCompletedOnboarding -> AppStage.ONBOARDING
+                else -> AppStage.MAIN
+            }
 
             CultureTheme(themeMode = settings.themeMode) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Crossfade(targetState = showSplash, label = "splashToApp") { splashVisible ->
-                        if (splashVisible) {
-                            SplashScreen(onFinished = { showSplash = false })
-                        } else {
-                            CultureNavHost()
+                    Crossfade(targetState = stage, label = "appStage") { currentStage ->
+                        when (currentStage) {
+                            AppStage.SPLASH -> SplashScreen(onFinished = { showSplash = false })
+                            AppStage.ONBOARDING -> OnboardingScreen(onDone = { name -> settingsViewModel.completeOnboarding(name) })
+                            AppStage.MAIN -> CultureNavHost()
                         }
                     }
                 }

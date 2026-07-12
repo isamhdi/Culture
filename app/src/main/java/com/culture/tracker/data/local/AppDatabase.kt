@@ -14,6 +14,7 @@ import com.culture.tracker.data.local.dao.PhaseHistoryDao
 import com.culture.tracker.data.local.dao.PlantDao
 import com.culture.tracker.data.local.dao.PlantLogDao
 import com.culture.tracker.data.local.dao.PlantPhotoDao
+import com.culture.tracker.data.local.dao.SensorSourceDao
 import com.culture.tracker.data.local.entity.CalendarAction
 import com.culture.tracker.data.local.entity.Environment
 import com.culture.tracker.data.local.entity.EnvironmentLog
@@ -25,6 +26,7 @@ import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.local.entity.PlantLog
 import com.culture.tracker.data.local.entity.PlantPhoto
+import com.culture.tracker.data.local.entity.SensorSource
 
 @Database(
     entities = [
@@ -39,8 +41,9 @@ import com.culture.tracker.data.local.entity.PlantPhoto
         HeightMeasurement::class,
         PlantLog::class,
         EnvironmentLog::class,
+        SensorSource::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -56,6 +59,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun heightMeasurementDao(): HeightMeasurementDao
     abstract fun plantLogDao(): PlantLogDao
     abstract fun environmentLogDao(): EnvironmentLogDao
+    abstract fun sensorSourceDao(): SensorSourceDao
 
     companion object {
         const val DATABASE_NAME = "culture.db"

@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,7 +38,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -53,7 +56,9 @@ fun EnvironmentsScreen(onEnvironmentClick: (Long) -> Unit = {}, viewModel: Envir
     var showCreateSheet by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Environnements") }) },
+        // Intégré sous l'onglet "Environnements" de GardenScreen : le PrimaryTabRow fait déjà
+        // office d'en-tête, pas besoin d'une TopAppBar ni de réserver l'inset du haut ici.
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateSheet = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Ajouter un environnement")

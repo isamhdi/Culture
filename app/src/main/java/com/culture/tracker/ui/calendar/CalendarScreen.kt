@@ -37,14 +37,25 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import com.culture.tracker.domain.model.ActionType
@@ -52,9 +63,36 @@ import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.ui.components.DotSpec
 import com.culture.tracker.ui.components.MonthCalendar
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 private enum class SheetMode { ACTION, PHASE, READING }
+
+/**
+ * Petites particules qui s'échappent du bouton de validation en spirale (angle et rayon
+ * augmentent ensemble) puis s'estompent — le petit geste "satisfaisant" demandé pour marquer
+ * une action comme faite.
+ */
+@Composable
+private fun SpiralCheckBurst(progress: Float, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        if (progress <= 0f || progress >= 1f) return@Canvas
+        val particleCount = 8
+        val maxRadius = size.minDimension / 2f
+        val eased = 1f - (1f - progress) * (1f - progress)
+        repeat(particleCount) { i ->
+            val baseAngle = i * (360f / particleCount)
+            val angleDeg = baseAngle + eased * 360f * 1.5f
+            val radius = eased * maxRadius
+            val rad = Math.toRadians(angleDeg.toDouble())
+            val x = center.x + radius * kotlin.math.cos(rad).toFloat()
+            val y = center.y + radius * kotlin.math.sin(rad).toFloat()
+            val alpha = (1f - eased).coerceIn(0f, 1f)
+            val particleRadius = (2.2f + 1.5f * (1f - eased)).dp.toPx()
+            drawCircle(color = color.copy(alpha = alpha), radius = particleRadius, center = Offset(x, y))
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,8 +149,18 @@ fun CalendarScreen(viewModel: CalendarViewModel = koinViewModel()) {
             if (state.predictedForSelectedDay.isNotEmpty()) {
                 item { Text("À faire le ${state.selectedDate}", style = MaterialTheme.typography.titleMedium) }
                 items(state.predictedForSelectedDay, key = { "${it.plantId}-${it.actionType}-${it.date}" }) { predicted ->
+                    val scope = rememberCoroutineScope()
+                    val haptics = LocalHapticFeedback.current
+                    val checkScale = remember { Animatable(1f) }
+                    val spiralProgress = remember { Animatable(0f) }
+                    var isCompleting by remember { mutableStateOf(false) }
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            prefillPlantId = predicted.plantId
+                            prefillType = predicted.actionType
+                            sheetMode = SheetMode.ACTION
+                        },
+                        modifier = Modifier.fillMaxWidth().animateItem(),
                         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                     ) {
                         Row(
@@ -128,12 +176,42 @@ fun CalendarScreen(viewModel: CalendarViewModel = koinViewModel()) {
                                 )
                                 Text("${predicted.actionType.label} · ${predicted.plantName}", style = MaterialTheme.typography.bodyLarge)
                             }
-                            IconButton(onClick = {
-                                prefillPlantId = predicted.plantId
-                                prefillType = predicted.actionType
-                                sheetMode = SheetMode.ACTION
-                            }) {
-                                Icon(Icons.Filled.CheckCircleOutline, contentDescription = "Marquer comme fait")
+                            Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                SpiralCheckBurst(
+                                    progress = spiralProgress.value,
+                                    color = Color(predicted.actionType.colorHex),
+                                    modifier = Modifier.size(56.dp),
+                                )
+                                IconButton(
+                                    onClick = {
+                                        if (isCompleting) return@IconButton
+                                        isCompleting = true
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        scope.launch {
+                                            checkScale.animateTo(1.4f, animationSpec = tween(100))
+                                            checkScale.animateTo(
+                                                1f,
+                                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+                                            )
+                                        }
+                                        scope.launch {
+                                            spiralProgress.snapTo(0f)
+                                            spiralProgress.animateTo(1f, animationSpec = tween(550, easing = FastOutSlowInEasing))
+                                        }
+                                        scope.launch {
+                                            // Laisse l'animation se jouer avant de faire disparaître l'item de la liste
+                                            // (sinon la recomposition liée à l'ajout en base coupe le geste avant la fin).
+                                            kotlinx.coroutines.delay(500)
+                                            viewModel.addAction(predicted.plantId, predicted.actionType, predicted.date, null, null)
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        Icons.Filled.CheckCircleOutline,
+                                        contentDescription = "Marquer comme fait",
+                                        modifier = Modifier.scale(checkScale.value),
+                                    )
+                                }
                             }
                         }
                     }
@@ -148,7 +226,7 @@ fun CalendarScreen(viewModel: CalendarViewModel = koinViewModel()) {
                 items(state.actionsForSelectedDay, key = { it.id }) { action ->
                     val plantName = state.plants.firstOrNull { it.id == action.plantId }?.name ?: "?"
                     val fertilizerName = action.fertilizerId?.let { id -> state.fertilizers.firstOrNull { it.id == id }?.name }
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(modifier = Modifier.fillMaxWidth().animateItem()) {
                         Row(
                             Modifier.fillMaxWidth().padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,6 +432,7 @@ private fun RecordReadingSheet(state: CalendarUiState, onDismiss: () -> Unit, vi
     var temperature by remember { mutableStateOf("") }
     var humidity by remember { mutableStateOf("") }
     var envMenuExpanded by remember { mutableStateOf(false) }
+    var recordedAt by remember { mutableStateOf(java.time.LocalDateTime.now()) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -374,6 +453,12 @@ private fun RecordReadingSheet(state: CalendarUiState, onDismiss: () -> Unit, vi
                     }
                 }
             }
+
+            com.culture.tracker.ui.components.DateTimePickerRow(
+                dateTime = recordedAt,
+                onDateTimeChange = { recordedAt = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -396,7 +481,7 @@ private fun RecordReadingSheet(state: CalendarUiState, onDismiss: () -> Unit, vi
                     val temp = temperature.toDoubleOrNull()
                     val hum = humidity.toDoubleOrNull()
                     if (envId != null && temp != null && hum != null) {
-                        viewModel.recordReading(envId, temp, hum)
+                        viewModel.recordReading(envId, temp, hum, recordedAt)
                     }
                     onDismiss()
                 },

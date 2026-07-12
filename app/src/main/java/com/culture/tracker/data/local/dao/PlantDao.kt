@@ -23,6 +23,9 @@ interface PlantDao {
     @Query("SELECT * FROM plants WHERE id = :id")
     suspend fun getById(id: Long): Plant?
 
+    @Query("SELECT COUNT(*) FROM plants")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM plants WHERE archived = 0 AND wateringIntervalDays IS NOT NULL")
     suspend fun getPlantsWithWateringSchedule(): List<Plant>
 

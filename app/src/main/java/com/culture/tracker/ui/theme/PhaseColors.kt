@@ -25,11 +25,29 @@ private val lightColors = mapOf(
 )
 private val darkColors = lightColors
 
+// Teintes foncées de chaque couleur de phase, utilisées comme texte sur un fond pâle de la même
+// teinte (pastille, initiale d'avatar) : le texte clair sur fond clair mesurait ~1.3:1 de contraste
+// en thème jour (quasi illisible) ; ces variantes visent ≥4.5:1 (WCAG AA texte normal).
+private val lightBadgeTextColors = mapOf(
+    GrowthPhase.GERMINATION to 0xFF0A4F54,
+    GrowthPhase.CROISSANCE to 0xFF1F4F23,
+    GrowthPhase.FLORAISON to 0xFF6E2879,
+    GrowthPhase.SECHAGE to 0xFF6B4407,
+    GrowthPhase.MATURATION to 0xFF3C2E87,
+)
+
 @Composable
 fun GrowthPhase.themedColor(): Color {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val map = if (isDark) darkColors else lightColors
     return Color(map.getValue(this))
+}
+
+/** Couleur à utiliser pour du texte posé sur un fond teinté de [themedColor] (pastille, avatar). */
+@Composable
+fun GrowthPhase.onBadgeColor(): Color {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return if (isDark) themedColor() else Color(lightBadgeTextColors.getValue(this))
 }
 
 val GrowthPhase.icon: ImageVector

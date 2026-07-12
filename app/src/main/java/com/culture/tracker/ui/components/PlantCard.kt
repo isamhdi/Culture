@@ -1,6 +1,7 @@
 package com.culture.tracker.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +28,7 @@ import com.culture.tracker.data.local.entity.Genetics
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.domain.phaseProgressOf
-import com.culture.tracker.ui.theme.HandoffColors
+import com.culture.tracker.ui.theme.onBadgeColor
 import com.culture.tracker.ui.theme.themedColor
 import java.io.File
 import java.time.LocalDate
@@ -50,14 +51,15 @@ fun PlantCard(
         onClick = onClick,
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
-        border = androidx.compose.foundation.BorderStroke(1.dp, HandoffColors.BorderCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier.size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(phaseColor.copy(alpha = 0.22f)),
+                        .background(phaseColor.copy(alpha = 0.22f))
+                        .border(androidx.compose.foundation.BorderStroke(1.dp, phaseColor), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (thumbnailPath != null) {
@@ -70,7 +72,7 @@ fun PlantCard(
                     } else {
                         Text(
                             plant.name.take(1).uppercase(),
-                            color = phaseColor,
+                            color = plant.currentPhase.onBadgeColor(),
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium,
@@ -92,7 +94,7 @@ fun PlantCard(
                 Box(
                     modifier = Modifier.fillMaxWidth().height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(HandoffColors.ProgressTrack),
+                        .background(MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxWidth(progress?.fraction ?: 0f).height(6.dp)
@@ -108,7 +110,7 @@ fun PlantCard(
                     Text(
                         if (progress != null) "J${progress.daysInPhase}/${progress.totalDurationDays}" else "J$totalDays",
                         style = MaterialTheme.typography.labelMedium,
-                        color = HandoffColors.TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
@@ -120,13 +122,13 @@ fun PlantCard(
                     Text(
                         heightCm?.let { "H ${it.toInt()}cm" } ?: "H —",
                         style = MaterialTheme.typography.labelMedium,
-                        color = HandoffColors.TextTertiary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
                     )
                     Text(
                         "Jour $totalDays",
                         style = MaterialTheme.typography.labelMedium,
-                        color = HandoffColors.TextTertiary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
                     )
                 }

@@ -5,6 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +19,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,12 +43,15 @@ import com.culture.tracker.ui.fertilizers.FertilizersScreen
 import com.culture.tracker.ui.genetics.GeneticsScreen
 import com.culture.tracker.ui.home.HomeScreen
 import com.culture.tracker.ui.journal.JournalScreen
+import com.culture.tracker.ui.settings.AboutScreen
+import com.culture.tracker.ui.settings.BackupScreen
 import com.culture.tracker.ui.settings.SettingsScreen
 import com.culture.tracker.ui.tools.ToolsScreen
 
 @Composable
 fun CultureNavHost() {
     val navController = rememberNavController()
+    var gardenInitialTab by remember { mutableIntStateOf(0) }
 
     fun navigateToTab(route: String) {
         navController.navigate(route) {
@@ -52,13 +62,20 @@ fun CultureNavHost() {
     }
 
     Scaffold(
+        // Chaque écran gère déjà sa propre barre de statut via son TopAppBar :
+        // ne pas réserver l'inset du haut ici pour éviter un double espacement.
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
         bottomBar = {
             val backStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = backStackEntry?.destination
-            FloatingBottomNav(
-                isSelected = { tab -> currentRoute?.hierarchy?.any { it.route == tab.route } == true },
-                onTabSelected = { tab -> navigateToTab(tab.route) },
-            )
+            val topLevelRoutes = BottomTab.all.map { tab -> tab.route }
+            val isTopLevelTab = currentRoute?.hierarchy?.any { dest -> topLevelRoutes.contains(dest.route) } == true
+            if (isTopLevelTab) {
+                FloatingBottomNav(
+                    isSelected = { tab -> currentRoute?.hierarchy?.any { dest -> dest.route == tab.route } == true },
+                    onTabSelected = { tab -> navigateToTab(tab.route) },
+                )
+            }
         },
     ) { padding ->
         NavHost(
@@ -70,12 +87,14 @@ fun CultureNavHost() {
                 HomeScreen(
                     onPlantClick = { plantId -> navController.navigate(Routes.plantDetail(plantId)) },
                     onNavigateToCalendar = { navigateToTab(BottomTab.Calendar.route) },
-                    onNavigateToGarden = { navigateToTab(BottomTab.Garden.route) },
+                    onNavigateToGarden = { gardenInitialTab = 0; navigateToTab(BottomTab.Garden.route) },
+                    onNavigateToEnvironments = { gardenInitialTab = 1; navigateToTab(BottomTab.Garden.route) },
                     onNavigateToSettings = { navigateToTab(BottomTab.Settings.route) },
                 )
             }
             composable(BottomTab.Garden.route) {
                 GardenScreen(
+                    initialTab = gardenInitialTab,
                     onPlantClick = { plantId -> navController.navigate(Routes.plantDetail(plantId)) },
                     onEnvironmentClick = { environmentId -> navController.navigate(Routes.environmentDetail(environmentId)) },
                 )
@@ -88,12 +107,16 @@ fun CultureNavHost() {
                     onOpenGenetics = { navController.navigate("genetics") },
                     onOpenFertilizers = { navController.navigate("fertilizers") },
                     onOpenArchive = { navController.navigate("archive") },
+                    onOpenAbout = { navController.navigate("about") },
+                    onOpenBackup = { navController.navigate("backup") },
                 )
             }
             composable("tools") { ToolsScreen(onBack = { navController.popBackStack() }) }
             composable("genetics") { GeneticsScreen(onBack = { navController.popBackStack() }) }
             composable("fertilizers") { FertilizersScreen(onBack = { navController.popBackStack() }) }
             composable("archive") { ArchiveScreen(onBack = { navController.popBackStack() }) }
+            composable("about") { AboutScreen(onBack = { navController.popBackStack() }) }
+            composable("backup") { BackupScreen(onBack = { navController.popBackStack() }) }
 
             composable(
                 route = Routes.PLANT_DETAIL,

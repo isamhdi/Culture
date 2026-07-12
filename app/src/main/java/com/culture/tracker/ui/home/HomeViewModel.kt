@@ -3,17 +3,16 @@ package com.culture.tracker.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.culture.tracker.data.local.entity.CalendarAction
-import com.culture.tracker.data.local.entity.Environment
 import com.culture.tracker.data.local.entity.EnvironmentReading
 import com.culture.tracker.data.local.entity.Fertilizer
 import com.culture.tracker.data.local.entity.Genetics
-import com.culture.tracker.data.local.entity.HeightMeasurement
 import com.culture.tracker.data.local.entity.PhaseHistory
 import com.culture.tracker.data.local.entity.Plant
 import com.culture.tracker.data.local.entity.PlantLog
 import com.culture.tracker.data.repository.CalendarRepository
 import com.culture.tracker.data.repository.GardenRepository
 import com.culture.tracker.data.repository.PhotoRepository
+import com.culture.tracker.data.repository.SettingsRepository
 import com.culture.tracker.domain.MoonPhase
 import com.culture.tracker.domain.MoonPhaseCalculator
 import com.culture.tracker.domain.model.ActionType
@@ -36,16 +35,14 @@ data class HomeUiState(
     val actionsInWeek: List<CalendarAction> = emptyList(),
     val riskFactors: List<GrowthRiskFactor> = emptyList(),
     val plants: List<Plant> = emptyList(),
-    val environments: List<Environment> = emptyList(),
     val thumbnails: Map<Long, String> = emptyMap(),
     val genetics: List<Genetics> = emptyList(),
     val openPhaseByPlant: Map<Long, PhaseHistory> = emptyMap(),
-    val latestHeightByPlant: Map<Long, Double> = emptyMap(),
     val todayScheduledCount: Int = 0,
     val todayDoneCount: Int = 0,
     val fertilizers: List<Fertilizer> = emptyList(),
+    val userName: String? = null,
 ) {
-    val actionsToday: Int get() = actionsInWeek.count { it.date == LocalDate.now() }
     val todayCompletionRatio: Float
         get() = if (todayScheduledCount == 0) 1f else (todayDoneCount.toFloat() / todayScheduledCount.toFloat()).coerceIn(0f, 1f)
 }
@@ -59,6 +56,7 @@ class HomeViewModel(
     private val gardenRepository: GardenRepository,
     private val calendarRepository: CalendarRepository,
     private val photoRepository: PhotoRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val selectedDate = MutableStateFlow(LocalDate.now())
@@ -79,36 +77,33 @@ class HomeViewModel(
         actionsInWeek,
         riskFactors,
         gardenRepository.observePlants(),
-        gardenRepository.observeEnvironments(),
         photoRepository.observeLatestPerPlant(),
         gardenRepository.observeGenetics(),
         gardenRepository.observeAllOpenPhases(),
-        gardenRepository.observeLatestHeights(),
         calendarRepository.observeFertilizers(),
+        settingsRepository.settings,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val selected = values[0] as LocalDate
         val actions = values[1] as List<CalendarAction>
         val risks = values[2] as List<GrowthRiskFactor>
         val plants = values[3] as List<Plant>
-        val environments = values[4] as List<Environment>
-        val photos = values[5] as List<com.culture.tracker.data.local.entity.PlantPhoto>
-        val genetics = values[6] as List<Genetics>
-        val openPhases = values[7] as List<PhaseHistory>
-        val heights = values[8] as List<HeightMeasurement>
-        val fertilizers = values[9] as List<Fertilizer>
+        val photos = values[4] as List<com.culture.tracker.data.local.entity.PlantPhoto>
+        val genetics = values[5] as List<Genetics>
+        val openPhases = values[6] as List<PhaseHistory>
+        val fertilizers = values[7] as List<Fertilizer>
+        val settings = values[8] as com.culture.tracker.data.repository.AppSettings
         HomeUiState(
             selectedDate = selected,
             moonPhase = MoonPhaseCalculator.phaseFor(selected),
             actionsInWeek = actions,
             riskFactors = risks,
             plants = plants,
-            environments = environments,
             thumbnails = photos.associate { it.plantId to it.filePath },
             genetics = genetics,
             openPhaseByPlant = openPhases.associateBy { it.plantId },
-            latestHeightByPlant = heights.associate { it.plantId to it.heightCm },
             fertilizers = fertilizers,
+            userName = settings.userName,
         )
     }.map { base ->
         val (scheduled, done) = computeTodayProgress(base.plants, base.actionsInWeek.filter { it.date == LocalDate.now() })
@@ -143,9 +138,6 @@ class HomeViewModel(
             calendarRepository.addAction(
                 CalendarAction(plantId = plantId, actionType = actionType, date = date, fertilizerId = fertilizerId, notes = notes),
             )
-            if (actionType == ActionType.DECES) {
-                uiState.value.plants.firstOrNull { it.id == plantId }?.let { gardenRepository.archivePlant(it) }
-            }
         }
     }
 

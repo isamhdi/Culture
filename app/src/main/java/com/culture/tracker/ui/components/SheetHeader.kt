@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.culture.tracker.ui.theme.HandoffColors
 
 /** En-tête standard des bottom sheets : titre + croix rouge de fermeture, reprise du design_handoff. */
 @Composable
@@ -31,9 +30,9 @@ fun SheetHeader(title: String, onClose: () -> Unit, modifier: Modifier = Modifie
             onClick = onClose,
             modifier = Modifier
                 .size(40.dp)
-                .background(HandoffColors.BackButtonBg, RoundedCornerShape(12.dp)),
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp)),
         ) {
-            Icon(Icons.Filled.Close, contentDescription = "Fermer", tint = HandoffColors.Danger)
+            Icon(Icons.Filled.Close, contentDescription = "Fermer", tint = MaterialTheme.colorScheme.error)
         }
     }
 }

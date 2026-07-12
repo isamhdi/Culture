@@ -7,6 +7,7 @@ import com.culture.tracker.domain.model.GrowMedium
 import com.culture.tracker.domain.model.GrowthPhase
 import com.culture.tracker.domain.model.PlantMeasurementType
 import com.culture.tracker.domain.model.PropagationType
+import com.culture.tracker.domain.model.SensorSourceType
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -58,4 +59,10 @@ class Converters {
 
     @TypeConverter
     fun toGrowMedium(value: String?): GrowMedium? = value?.let(GrowMedium::valueOf)
+
+    @TypeConverter
+    fun fromSensorSourceType(value: SensorSourceType?): String? = value?.name
+
+    @TypeConverter
+    fun toSensorSourceType(value: String?): SensorSourceType? = value?.let(SensorSourceType::valueOf)
 }

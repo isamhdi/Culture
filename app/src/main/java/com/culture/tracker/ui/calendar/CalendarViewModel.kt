@@ -166,12 +166,12 @@ class CalendarViewModel(
         viewModelScope.launch { gardenRepository.changePhase(plantId, phase, effectiveDate) }
     }
 
-    fun recordReading(environmentId: Long, temperatureCelsius: Double, humidityPercent: Double) {
+    fun recordReading(environmentId: Long, temperatureCelsius: Double, humidityPercent: Double, recordedAt: LocalDateTime) {
         viewModelScope.launch {
             calendarRepository.recordReading(
                 EnvironmentReading(
                     environmentId = environmentId,
-                    recordedAt = LocalDateTime.now(),
+                    recordedAt = recordedAt,
                     temperatureCelsius = temperatureCelsius,
                     humidityPercent = humidityPercent,
                 ),

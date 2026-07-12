@@ -20,6 +20,9 @@ interface EnvironmentDao {
     @Query("SELECT * FROM environments WHERE id = :id")
     suspend fun getById(id: Long): Environment?
 
+    @Query("SELECT COUNT(*) FROM environments")
+    suspend fun count(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(environment: Environment): Long
 

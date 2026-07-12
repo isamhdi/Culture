@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.culture.tracker.data.local.entity.HeightMeasurement
-import com.culture.tracker.ui.theme.HandoffColors
 
 /**
  * Courbe de croissance (hauteur en cm dans le temps), reprise à l'identique du
@@ -33,13 +32,13 @@ fun GrowthChart(history: List<HeightMeasurement>, stageColor: Color, totalDay: L
             Text(
                 "Pas encore de relevé de hauteur.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = HandoffColors.TextTertiary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         return
     }
 
-    val gridColor = HandoffColors.BorderCard
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
     val maxHeight = (history.maxOf { it.heightCm }).coerceAtLeast(1.0)
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -99,14 +98,14 @@ fun GrowthChart(history: List<HeightMeasurement>, stageColor: Color, totalDay: L
             "J0",
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
-            color = HandoffColors.TextTertiary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomStart),
         )
         Text(
             "J$totalDay",
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
-            color = HandoffColors.TextTertiary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomEnd),
         )
     }

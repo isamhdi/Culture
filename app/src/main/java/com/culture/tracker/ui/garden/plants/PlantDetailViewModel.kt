@@ -120,9 +120,6 @@ class PlantDetailViewModel(
             calendarRepository.addAction(
                 CalendarAction(plantId = plantId, actionType = actionType, date = date, fertilizerId = fertilizerId, notes = notes),
             )
-            if (actionType == ActionType.DECES) {
-                uiState.value.plant?.let { gardenRepository.archivePlant(it) }
-            }
         }
     }
 

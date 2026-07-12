@@ -18,12 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SpaceDashboard
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
@@ -78,11 +75,13 @@ fun HomeScreen(
     onPlantClick: (Long) -> Unit = {},
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToGarden: () -> Unit = {},
+    onNavigateToEnvironments: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     var showAddActionSheet by remember { mutableStateOf(false) }
     var showAddLogSheet by remember { mutableStateOf(false) }
+    val greeting = remember(state.userName) { homeGreeting(LocalDate.now(), state.userName) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_home)) }) },
@@ -92,6 +91,28 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                Text(
+                    greeting,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            item {
+                Card {
+                    WeekCalendar(
+                        selectedDate = state.selectedDate,
+                        dotsForDate = { date ->
+                            state.actionsInWeek.filter { it.date == date }
+                                .map { com.culture.tracker.ui.components.DotSpec(androidx.compose.ui.graphics.Color(it.actionType.colorHex)) }
+                        },
+                        onDateClick = viewModel::onDateSelected,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
+            }
+
             if (state.todayScheduledCount > 0) {
                 item {
                     Card(
@@ -134,25 +155,15 @@ fun HomeScreen(
             }
 
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile(
-                        label = "Plantes actives",
-                        value = state.plants.size.toString(),
-                        icon = Icons.Filled.Spa,
-                        modifier = Modifier.weight(1f),
-                        contentColor = Color.White,
-                        containerBrush = Brush.linearGradient(listOf(Color(0xFF3B6939), Color(0xFF1BAF7A))),
-                        onClick = onNavigateToGarden,
-                    )
-                    StatTile(
-                        label = "Alertes",
-                        value = state.riskFactors.size.toString(),
-                        icon = Icons.Filled.Warning,
-                        modifier = Modifier.weight(1f),
-                        contentColor = Color.White,
-                        containerBrush = Brush.linearGradient(listOf(Color(0xFFE34948), Color(0xFFEB6834))),
-                    )
-                }
+                StatTile(
+                    label = "Plantes actives",
+                    value = state.plants.size.toString(),
+                    icon = Icons.Filled.Spa,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentColor = Color.White,
+                    containerBrush = Brush.linearGradient(listOf(Color(0xFF3B6939), Color(0xFF1BAF7A))),
+                    onClick = onNavigateToGarden,
+                )
             }
 
             item {
@@ -160,9 +171,8 @@ fun HomeScreen(
                     Text("Boîte à outils", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         ToolboxAction(Icons.Filled.Bolt, "Action") { showAddActionSheet = true }
-                        ToolboxAction(Icons.Filled.CameraAlt, "Photo") { onNavigateToGarden() }
                         ToolboxAction(Icons.Filled.Assignment, "Relevé") { showAddLogSheet = true }
-                        ToolboxAction(Icons.Filled.SpaceDashboard, "Environnement") { onNavigateToGarden() }
+                        ToolboxAction(Icons.Filled.SpaceDashboard, "Environnement") { onNavigateToEnvironments() }
                         ToolboxAction(Icons.Filled.MoreHoriz, "Plus") { onNavigateToSettings() }
                     }
                 }
@@ -198,20 +208,6 @@ fun HomeScreen(
             }
 
             item {
-                Card {
-                    WeekCalendar(
-                        selectedDate = state.selectedDate,
-                        dotsForDate = { date ->
-                            state.actionsInWeek.filter { it.date == date }
-                                .map { com.culture.tracker.ui.components.DotSpec(androidx.compose.ui.graphics.Color(it.actionType.colorHex)) }
-                        },
-                        onDateClick = viewModel::onDateSelected,
-                        modifier = Modifier.padding(12.dp),
-                    )
-                }
-            }
-
-            item {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -221,35 +217,6 @@ fun HomeScreen(
                         Column {
                             Text("Phase lunaire du jour", style = MaterialTheme.typography.labelMedium)
                             Text(state.moonPhase.label, style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
-                }
-            }
-
-            item {
-                Text("Facteurs pouvant altérer la croissance", style = MaterialTheme.typography.titleMedium)
-            }
-
-            if (state.riskFactors.isEmpty()) {
-                item {
-                    Text(
-                        "Aucune alerte pour le moment.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                items(state.riskFactors) { risk ->
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
-                            Column {
-                                Text(risk.label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onErrorContainer)
-                                Text(risk.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
-                            }
                         }
                     }
                 }

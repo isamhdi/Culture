@@ -1,5 +1,6 @@
 package com.culture.tracker.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -8,8 +9,11 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.culture.tracker.data.repository.ThemeMode
 
 private val LightColors = lightColorScheme(
@@ -31,13 +35,16 @@ private val LightColors = lightColorScheme(
     onSurface = OnSurfaceLight,
     surfaceVariant = Color(0xFFE8E4D4),
     onSurfaceVariant = Color(0xFF48493E),
-    surfaceContainer = Color(0xFFEDEADC),
-    surfaceContainerHigh = Color(0xFFE7E3D3),
-    surfaceContainerHighest = Color(0xFFE1DCCB),
+    // Assombris par rapport aux tons d'origine pour que les cartes et la piste des barres de
+    // progression se détachent réellement du fond en thème jour (contraste mesuré ~1.2:1 avant
+    // changement, quasi imperceptible ; ~1.5-1.7:1 après, cf. discussion sur la lisibilité).
+    surfaceContainer = Color(0xFFDCD6BA),
+    surfaceContainerHigh = Color(0xFFD1CAAB),
+    surfaceContainerHighest = Color(0xFFC8BF9F),
     surfaceContainerLow = Color(0xFFF6F3E7),
     surfaceContainerLowest = Color(0xFFFFFFFF),
     outline = Color(0xFF7C7C6C),
-    outlineVariant = Color(0xFFCCC8B8),
+    outlineVariant = Color(0xFFA39C80),
 )
 
 private val DarkColors = darkColorScheme(
@@ -89,6 +96,19 @@ fun CultureTheme(
             if (useDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         useDark -> DarkColors
         else -> LightColors
+    }
+
+    // enableEdgeToEdge() ne fixe le style des icônes système qu'une fois, à partir du thème
+    // système — indépendant du réglage Jour/Nuit/Système propre à l'app. On le resynchronise
+    // ici à chaque changement pour que les icônes restent lisibles dans toutes les combinaisons.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !useDark
+            controller.isAppearanceLightNavigationBars = !useDark
+        }
     }
 
     MaterialTheme(
